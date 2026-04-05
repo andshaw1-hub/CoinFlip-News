@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Coin Flip — NIL & Sports Betting Intelligence</title>
+<meta name="description" content="Sharp editorial intelligence on NIL deals, sports betting, and college sports business. Researched live, published three times a week.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://js.stripe.com/v3/"></script>
+<style>
+/* ═══════════════════════════════════════
+   TOKENS
+═══════════════════════════════════════ */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+:root {
+  --crimson:   #C8102E; --crimson-d: #9E0C24; --crimson-l: #FEF0F2;
+  --gold:      #C9952A; --gold-l:    #FDF6E3;
+  --ink:       #0D0D0D; --ink-2:     #242424; --ink-3:     #525252; --ink-4:     #8C8C8C;
+  --rule:      #E8E4DC; --bg:        #F8F5EF; --white:     #FFFFFF;
+  --green:     #1A6B3C; --green-l:   #F0FAF4;
+  --serif: 'DM Serif Display',Georgia,serif;
+  --sans:  'DM Sans',system-ui,sans-serif;
+  --mono:  'DM Mono',monospace;
+  --ease:  cubic-bezier(.16,1,.3,1);
+  --sh-sm: 0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+  --sh-md: 0 4px 16px rgba(0,0,0,.08),0 2px 6px rgba(0,0,0,.05);
+  --sh-lg: 0 12px 40px rgba(0,0,0,.10),0 4px 12px rgba(0,0,0,.06);
+}
+html { -webkit-font-smoothing:antialiased; }
+body { background:var(--bg); font-family:var(--sans); color:var(--ink); overflow-x:hidden; }
+
+/* ── VIEWS ── */
+.view { display:none; }
+.view.active { display:block; }
+
+/* ── BUTTONS ── */
+.btn { display:inline-flex; align-items:center; gap:6px; border:none; border-radius:7px; cursor:pointer; font-family:var(--sans); font-weight:600; transition:all .16s; letter-spacing:.15px; }
+.btn-sm  { padding:8px 16px; font-size:13px; }
+.btn-md  { padding:11px 22px; font-size:14px; }
+.btn-lg  { padding:14px 28px; font-size:15px; }
+.btn-primary { background:var(--crimson); color:#fff; box-shadow:0 2px 10px rgba(200,16,46,.2); }
+.btn-primary:hover { background:var(--crimson-d); transform:translateY(-1px); box-shadow:0 4px 18px rgba(200,16,46,.3); }
+.btn-outline  { background:transparent; color:var(--ink-2); border:1.5px solid var(--rule); }
+.btn-outline:hover  { border-color:var(--ink-3); transform:translateY(-1px); }
+.btn-ghost    { background:transparent; color:var(--ink-3); }
+.btn-ghost:hover    { color:var(--ink); background:var(--bg); }
+.btn-gold     { background:var(--gold); color:#fff; }
+.btn-gold:hover     { opacity:.9; transform:translateY(-1px); }
+.btn:disabled { opacity:.5; cursor:not-allowed; transform:none !important; }
+
+/* ── MASTHEAD ── */
+.masthead { background:var(--white); border-bottom:1px solid var(--rule); position:sticky; top:0; z-index:200; box-shadow:var(--sh-sm); }
+.mast-inner { display:flex; align-items:stretch; height:62px; padding:0 40px; }
+.brand { display:flex; align-items:center; gap:12px; padding-right:32px; border-right:1px solid var(--rule); cursor:pointer; }
+.brand-coin { width:34px; height:34px; border-radius:50%; background:var(--crimson); display:flex; align-items:center; justify-content:center; animation:coinFlip 5s ease-in-out infinite; flex-shrink:0; }
+@keyframes coinFlip { 0%,35%,65%,100%{transform:rotateY(0)} 48%,52%{transform:rotateY(90deg)} }
+.brand-coin svg { width:18px; height:18px; fill:#fff; }
+.brand-name { font-family:var(--serif); font-size:20px; color:var(--ink); letter-spacing:-.2px; }
+.brand-name em { font-style:italic; color:var(--crimson); }
+.brand-sub  { font-family:var(--mono); font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--ink-4); margin-top:3px; }
+.mast-nav { display:flex; align-items:center; gap:28px; padding:0 32px; flex:1; }
+.nav-link { font-size:13px; font-weight:500; color:var(--ink-3); cursor:pointer; position:relative; padding-bottom:2px; transition:color .18s; }
+.nav-link::after { content:''; position:absolute; bottom:-1px; left:0; width:0; height:2px; background:var(--crimson); transition:width .25s var(--ease); }
+.nav-link:hover { color:var(--ink); }
+.nav-link:hover::after,.nav-link.active::after { width:100%; }
+.nav-link.active { color:var(--crimson); }
+.mast-right { display:flex; align-items:center; gap:10px; padding-left:32px; border-left:1px solid var(--rule); }
+.tier-badge { font-family:var(--mono); font-size:9px; font-weight:500; letter-spacing:2px; text-transform:uppercase; padding:4px 10px; border-radius:3px; background:var(--bg); color:var(--ink-4); border:1px solid var(--rule); }
+.tier-badge.pro { background:var(--crimson-l); color:var(--crimson); border-color:rgba(200,16,46,.2); }
+.ticker { background:var(--crimson); overflow:hidden; height:28px; display:flex; align-items:center; }
+.ticker-tag { font-family:var(--mono); font-size:9px; letter-spacing:2.5px; text-transform:uppercase; color:rgba(255,255,255,.55); padding:0 16px; border-right:1px solid rgba(255,255,255,.15); white-space:nowrap; height:100%; display:flex; align-items:center; }
+.ticker-scroll { overflow:hidden; flex:1; }
+.ticker-text { display:inline-block; white-space:nowrap; animation:scrollTicker 50s linear infinite; font-family:var(--mono); font-size:10px; letter-spacing:1px; text-transform:uppercase; color:rgba(255,255,255,.88); }
+.ticker-sep { margin:0 14px; opacity:.3; }
+@keyframes scrollTicker { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+
+/* ── AD SLOTS ── */
+.ad-wrap { background:var(--white); border:1px solid var(--rule); border-radius:8px; overflow:hidden; position:relative; display:flex; align-items:center; justify-content:center; }
+.ad-wrap::before { content:'Advertisement'; font-family:var(--mono); font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--ink-4); position:absolute; top:6px; left:10px; z-index:1; }
+.ad-wrap ins { display:block; }
+.ad-leaderboard { min-height:100px; margin:16px auto; max-width:760px; }
+.ad-banner      { min-height:70px;  margin:16px 0; }
+.ad-rectangle   { min-height:260px; width:320px; }
+
+/* ══════════════════════════════════════
+   LANDING
+══════════════════════════════════════ */
+.hero { background:var(--white); border-bottom:1px solid var(--rule); padding:80px 40px 72px; text-align:center; position:relative; overflow:hidden; }
+.hero::before { content:''; position:absolute; top:0; left:0; right:0; height:4px; background:linear-gradient(90deg,var(--crimson),var(--gold),var(--crimson)); background-size:200%; animation:gradShift 4s linear infinite; }
+@keyframes gradShift { 0%{background-position:0%} 100%{background-position:200%} }
+.hero-eye { font-family:var(--mono); font-size:10px; font-weight:500; letter-spacing:3px; text-transform:uppercase; color:var(--crimson); margin-bottom:20px; animation:fadeUp .5s var(--ease) both; }
+.hero-h1  { font-family:var(--serif); font-size:clamp(40px,6vw,76px); line-height:1.02; letter-spacing:-1.5px; color:var(--ink); margin-bottom:24px; animation:fadeUp .5s var(--ease) .08s both; }
+.hero-h1 em { font-style:italic; color:var(--crimson); }
+.hero-sub { font-size:18px; font-weight:300; line-height:1.65; color:var(--ink-3); max-width:540px; margin:0 auto 40px; animation:fadeUp .5s var(--ease) .16s both; }
+.hero-cta { display:flex; align-items:center; justify-content:center; gap:12px; margin-bottom:56px; animation:fadeUp .5s var(--ease) .24s both; }
+.hero-proof { display:flex; align-items:center; justify-content:center; gap:32px; animation:fadeUp .5s var(--ease) .32s both; }
+.proof-item { text-align:center; }
+.proof-num   { font-family:var(--serif); font-size:28px; color:var(--ink); letter-spacing:-.5px; }
+.proof-label { font-family:var(--mono); font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--ink-4); margin-top:2px; }
+.proof-div   { width:1px; height:36px; background:var(--rule); }
+
+/* PRICING */
+.pricing-wrap  { padding:72px 40px; max-width:960px; margin:0 auto; }
+.section-eye   { font-family:var(--mono); font-size:10px; letter-spacing:3px; text-transform:uppercase; color:var(--crimson); text-align:center; margin-bottom:14px; }
+.section-title { font-family:var(--serif); font-size:38px; color:var(--ink); text-align:center; letter-spacing:-.5px; margin-bottom:48px; }
+.pricing-grid  { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+.p-card { background:var(--white); border:1px solid var(--rule); border-radius:14px; padding:32px 28px; box-shadow:var(--sh-sm); transition:all .2s var(--ease); position:relative; }
+.p-card:hover { transform:translateY(-3px); box-shadow:var(--sh-md); }
+.p-card.featured { border-color:var(--crimson); box-shadow:0 0 0 1px var(--crimson),var(--sh-md); }
+.p-badge { position:absolute; top:-12px; left:50%; transform:translateX(-50%); background:var(--crimson); color:#fff; font-family:var(--mono); font-size:9px; font-weight:500; letter-spacing:2px; text-transform:uppercase; padding:4px 14px; border-radius:20px; white-space:nowrap; }
+.p-tier  { font-family:var(--mono); font-size:10px; letter-spacing:2.5px; text-transform:uppercase; color:var(--ink-4); margin-bottom:10px; }
+.p-price { font-family:var(--serif); font-size:48px; letter-spacing:-1px; color:var(--ink); line-height:1; margin-bottom:4px; }
+.p-price sup { font-size:22px; vertical-align:top; margin-top:10px; display:inline-block; font-family:var(--sans); font-weight:300; }
+.p-price span { font-size:16px; font-family:var(--sans); font-weight:300; color:var(--ink-4); }
+.p-desc { font-size:13px; color:var(--ink-3); line-height:1.6; margin-bottom:24px; margin-top:6px; }
+.p-features { list-style:none; margin-bottom:28px; }
+.p-features li { font-size:13px; color:var(--ink-2); padding:7px 0; border-bottom:1px solid var(--rule); display:flex; align-items:center; gap:10px; }
+.p-features li:last-child { border-bottom:none; }
+.feat-y { width:16px; height:16px; border-radius:50%; background:var(--green-l); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.feat-y svg { width:9px; height:9px; stroke:var(--green); stroke-width:2.5; fill:none; }
+.feat-n { width:16px; height:16px; border-radius:50%; background:var(--bg); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.feat-n svg { width:8px; height:8px; stroke:var(--ink-4); stroke-width:2.5; fill:none; }
+
+/* HOW */
+.how-wrap  { background:var(--white); border-top:1px solid var(--rule); border-bottom:1px solid var(--rule); padding:72px 40px; }
+.how-inner { max-width:880px; margin:0 auto; }
+.how-steps { display:grid; grid-template-columns:repeat(3,1fr); gap:32px; }
+.step-num   { font-family:var(--serif); font-style:italic; font-size:48px; color:var(--rule); line-height:1; margin-bottom:12px; }
+.step-title { font-size:16px; font-weight:600; color:var(--ink); margin-bottom:8px; }
+.step-body  { font-size:13px; font-weight:300; line-height:1.7; color:var(--ink-3); }
+
+/* ══════════════════════════════════════
+   ENGINE
+══════════════════════════════════════ */
+.engine-wrap { display:grid; grid-template-columns:300px 1fr; max-width:1320px; margin:0 auto; padding:32px 40px; gap:32px; align-items:start; }
+.sidebar { position:sticky; top:102px; display:flex; flex-direction:column; gap:2px; }
+.panel { background:var(--white); border:1px solid var(--rule); padding:20px 22px; }
+.panel+.panel { border-top:none; }
+.panel:first-child { border-radius:10px 10px 0 0; }
+.panel.last { border-radius:0 0 10px 10px; }
+.panel-hdr { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+.panel-label { font-family:var(--mono); font-size:9px; letter-spacing:2.5px; text-transform:uppercase; color:var(--ink-4); }
+.panel-num   { font-family:var(--mono); font-size:9px; color:var(--rule); }
+.field { margin-bottom:13px; }
+.field:last-child { margin-bottom:0; }
+.field label { display:block; font-family:var(--mono); font-size:9px; letter-spacing:1.5px; text-transform:uppercase; color:var(--ink-4); margin-bottom:6px; }
+.field input,.field textarea,.field select { width:100%; background:var(--bg); border:1.5px solid var(--rule); border-radius:7px; padding:9px 12px; font-family:var(--sans); font-size:13px; color:var(--ink); outline:none; resize:vertical; -webkit-appearance:none; transition:border-color .18s,box-shadow .18s; }
+.field input:focus,.field textarea:focus,.field select:focus { border-color:var(--crimson); background:var(--white); box-shadow:0 0 0 3px rgba(200,16,46,.08); }
+.field textarea { min-height:68px; line-height:1.5; }
+.tone-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+.tone-btn { padding:9px 8px; background:var(--bg); border:1.5px solid var(--rule); border-radius:7px; font-family:var(--sans); font-size:12px; font-weight:500; cursor:pointer; color:var(--ink-3); transition:all .14s; }
+.tone-btn:hover { border-color:var(--crimson); color:var(--crimson); background:var(--crimson-l); }
+.tone-btn.active { background:var(--crimson); border-color:var(--crimson); color:#fff; font-weight:600; }
+.run-btn { width:100%; height:48px; background:var(--crimson); border:none; border-radius:8px; color:#fff; font-family:var(--sans); font-size:14px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 2px 12px rgba(200,16,46,.22); transition:all .18s; }
+.run-btn:hover:not(:disabled) { background:var(--crimson-d); transform:translateY(-1px); box-shadow:0 6px 20px rgba(200,16,46,.3); }
+.run-btn:disabled { opacity:.5; cursor:not-allowed; box-shadow:none; transform:none; }
+.spinner { display:none; width:16px; height:16px; border:2px solid rgba(255,255,255,.25); border-top-color:#fff; border-radius:50%; animation:spin .65s linear infinite; }
+@keyframes spin { to{transform:rotate(360deg)} }
+.status-line { margin-top:10px; font-family:var(--mono); font-size:10px; letter-spacing:.5px; color:var(--ink-4); text-align:center; min-height:16px; }
+.status-line.live  { color:var(--green); }
+.status-line.error { color:var(--crimson); }
+.gen-counter { font-family:var(--mono); font-size:9px; letter-spacing:1px; color:var(--ink-4); text-align:center; margin-top:6px; }
+.hist-item { padding:11px 0; border-bottom:1px solid var(--rule); cursor:pointer; }
+.hist-item:first-child { padding-top:0; }
+.hist-item:last-child  { border-bottom:none; padding-bottom:0; }
+.hist-item:hover .hist-hed { color:var(--crimson); }
+.hist-hed  { font-size:12px; font-weight:500; color:var(--ink-2); line-height:1.4; margin-bottom:3px; transition:color .14s; }
+.hist-meta { font-family:var(--mono); font-size:9px; letter-spacing:.5px; color:var(--ink-4); text-transform:uppercase; }
+
+/* ARTICLE */
+.engine-main { min-height:600px; }
+.empty-state { background:var(--white); border:1px solid var(--rule); border-radius:10px; min-height:540px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; text-align:center; padding:60px 40px; }
+.empty-glyph { font-family:var(--serif); font-style:italic; font-size:80px; color:var(--rule); line-height:1; letter-spacing:-3px; }
+.empty-state h3 { font-family:var(--serif); font-size:26px; color:var(--ink-3); font-weight:400; }
+.empty-state p  { font-size:13px; color:var(--ink-4); max-width:260px; line-height:1.65; }
+.article { display:none; background:var(--white); border:1px solid var(--rule); border-radius:10px; overflow:hidden; animation:fadeUp .45s var(--ease) both; }
+.art-stripe { height:4px; background:linear-gradient(90deg,var(--crimson),var(--gold)); }
+.art-inner  { padding:40px 48px 48px; }
+.kicker-row { display:flex; align-items:center; gap:12px; margin-bottom:16px; animation:fadeUp .4s var(--ease) .1s both; }
+.kicker-tag { font-family:var(--mono); font-size:10px; font-weight:500; letter-spacing:2.5px; text-transform:uppercase; color:var(--crimson); background:var(--crimson-l); padding:4px 12px; border-radius:3px; }
+.live-dot   { display:flex; align-items:center; gap:5px; font-family:var(--mono); font-size:9px; letter-spacing:1.5px; text-transform:uppercase; color:var(--green); }
+.live-dot::before { content:''; width:6px; height:6px; border-radius:50%; background:var(--green); animation:livePulse 1.4s ease-in-out infinite; }
+@keyframes livePulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+.art-headline { font-family:var(--serif); font-size:clamp(28px,3.8vw,50px); font-weight:400; line-height:1.06; color:var(--ink); letter-spacing:-1px; margin-bottom:16px; animation:fadeUp .45s var(--ease) .15s both; }
+.art-deck     { font-size:17px; font-weight:300; line-height:1.65; color:var(--ink-3); max-width:660px; margin-bottom:20px; padding-bottom:20px; border-bottom:1px solid var(--rule); animation:fadeUp .45s var(--ease) .2s both; }
+.art-meta     { display:flex; flex-wrap:wrap; align-items:center; gap:16px; margin-bottom:32px; animation:fadeUp .45s var(--ease) .25s both; }
+.meta-pub  { display:flex; align-items:center; gap:8px; }
+.meta-coin { width:26px; height:26px; background:var(--crimson); border-radius:50%; display:flex; align-items:center; justify-content:center; }
+.meta-coin svg { width:12px; height:12px; fill:#fff; }
+.meta-pub-name { font-size:13px; font-weight:600; color:var(--ink-2); }
+.meta-dot  { width:3px; height:3px; border-radius:50%; background:var(--rule); }
+.meta-info { font-family:var(--mono); font-size:10px; letter-spacing:.5px; color:var(--ink-4); }
+.meta-badge{ font-family:var(--mono); font-size:9px; letter-spacing:1.5px; text-transform:uppercase; color:var(--ink-3); background:var(--bg); border:1px solid var(--rule); padding:3px 9px; border-radius:3px; }
+.art-content{ max-width:680px; font-size:16.5px; font-weight:300; line-height:1.85; color:var(--ink-2); animation:fadeUp .5s var(--ease) .3s both; }
+.art-content p { margin-bottom:22px; }
+.art-content p:first-of-type::first-letter { font-family:var(--serif); font-size:70px; font-style:italic; float:left; line-height:.75; margin:12px 10px 0 0; color:var(--crimson); }
+.pullquote { display:grid; grid-template-columns:3px 1fr; gap:22px; margin:36px 0; }
+.pq-rule   { background:var(--gold); border-radius:2px; }
+.pq-text   { font-family:var(--serif); font-style:italic; font-size:22px; line-height:1.4; color:var(--ink); letter-spacing:-.2px; }
+.art-sources { max-width:680px; margin-top:40px; padding-top:24px; border-top:1px solid var(--rule); }
+.sources-lbl { font-family:var(--mono); font-size:9px; letter-spacing:2.5px; text-transform:uppercase; color:var(--ink-4); margin-bottom:12px; }
+.sources-wrap { display:flex; flex-wrap:wrap; gap:7px; }
+.source-pill { font-family:var(--mono); font-size:10px; color:var(--ink-3); background:var(--bg); border:1px solid var(--rule); padding:5px 11px; border-radius:4px; display:flex; align-items:center; gap:6px; transition:border-color .14s; }
+.source-pill:hover { border-color:var(--ink-3); }
+.source-pill::before { content:''; width:4px; height:4px; border-radius:50%; background:var(--crimson); flex-shrink:0; }
+.art-actions { max-width:680px; display:flex; align-items:center; gap:8px; margin-top:28px; padding-top:24px; border-top:1px solid var(--rule); flex-wrap:wrap; }
+.action-btn { display:inline-flex; align-items:center; gap:6px; padding:9px 16px; border-radius:6px; font-family:var(--sans); font-size:12px; font-weight:500; cursor:pointer; border:1.5px solid transparent; transition:all .15s; }
+.action-primary { background:var(--crimson); color:#fff; border-color:var(--crimson); }
+.action-primary:hover { background:var(--crimson-d); transform:translateY(-1px); }
+.action-outline { background:transparent; border-color:var(--rule); color:var(--ink-2); }
+.action-outline:hover { border-color:var(--ink-3); transform:translateY(-1px); }
+.wc-badge { margin-left:auto; font-family:var(--mono); font-size:10px; letter-spacing:.5px; color:var(--ink-4); background:var(--bg); border:1px solid var(--rule); padding:5px 11px; border-radius:4px; }
+
+/* ══════════════════════════════════════
+   MODAL
+══════════════════════════════════════ */
+.modal-bg { display:none; position:fixed; inset:0; z-index:1000; background:rgba(0,0,0,.45); backdrop-filter:blur(4px); align-items:center; justify-content:center; }
+.modal-bg.open { display:flex; }
+.modal { background:var(--white); border-radius:16px; width:100%; max-width:460px; margin:20px; box-shadow:var(--sh-lg); animation:modalIn .35s var(--ease) both; }
+@keyframes modalIn { from{opacity:0;transform:translateY(20px) scale(.97)} to{opacity:1;transform:none} }
+.modal-hdr { padding:28px 28px 0; display:flex; justify-content:space-between; align-items:flex-start; }
+.modal-title { font-family:var(--serif); font-size:24px; letter-spacing:-.3px; color:var(--ink); }
+.modal-x { width:30px; height:30px; border:none; background:var(--bg); border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--ink-3); font-size:16px; flex-shrink:0; transition:background .15s; }
+.modal-x:hover { background:var(--rule); }
+.modal-body { padding:20px 28px 28px; }
+.modal-tabs { display:flex; border-bottom:1px solid var(--rule); margin-bottom:24px; }
+.modal-tab { padding:10px 20px; font-size:13px; font-weight:500; color:var(--ink-4); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; transition:all .15s; }
+.modal-tab.active { color:var(--crimson); border-bottom-color:var(--crimson); }
+.f-field { margin-bottom:16px; }
+.f-field label { display:block; font-family:var(--mono); font-size:9px; letter-spacing:1.5px; text-transform:uppercase; color:var(--ink-4); margin-bottom:6px; }
+.f-field input { width:100%; background:var(--bg); border:1.5px solid var(--rule); border-radius:8px; padding:10px 14px; font-family:var(--sans); font-size:14px; color:var(--ink); outline:none; transition:border-color .18s,box-shadow .18s; }
+.f-field input:focus { border-color:var(--crimson); background:var(--white); box-shadow:0 0 0 3px rgba(200,16,46,.08); }
+.plan-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:18px; }
+.plan-opt { border:1.5px solid var(--rule); border-radius:8px; padding:14px; cursor:pointer; transition:all .14s; }
+.plan-opt:hover { border-color:var(--crimson); }
+.plan-opt.sel { border-color:var(--crimson); background:var(--crimson-l); }
+.plan-name  { font-size:13px; font-weight:600; color:var(--ink); margin-bottom:2px; }
+.plan-price { font-family:var(--mono); font-size:11px; color:var(--ink-4); }
+.plan-opt.sel .plan-price { color:var(--crimson); }
+#card-element { background:var(--bg); border:1.5px solid var(--rule); border-radius:8px; padding:12px 14px; margin-bottom:16px; transition:border-color .18s; }
+#card-element.StripeElement--focus { border-color:var(--crimson); }
+.err-msg { font-size:12px; color:var(--crimson); margin-top:6px; min-height:16px; }
+.secure-badge { display:flex; align-items:center; justify-content:center; gap:6px; font-family:var(--mono); font-size:9px; letter-spacing:1px; color:var(--ink-4); margin-top:12px; text-transform:uppercase; }
+.billing-link { display:block; text-align:center; font-size:12px; color:var(--crimson); cursor:pointer; margin-top:10px; }
+.billing-link:hover { text-decoration:underline; }
+
+/* ── ACCOUNT VIEW ── */
+.account-wrap { max-width:640px; margin:40px auto; padding:0 40px; }
+.account-card { background:var(--white); border:1px solid var(--rule); border-radius:12px; padding:28px; margin-bottom:16px; box-shadow:var(--sh-sm); }
+.account-section-title { font-family:var(--mono); font-size:10px; letter-spacing:2.5px; text-transform:uppercase; color:var(--ink-4); margin-bottom:16px; }
+.account-row { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--rule); }
+.account-row:last-child { border-bottom:none; }
+.account-key   { font-size:13px; color:var(--ink-3); }
+.account-value { font-size:13px; font-weight:600; color:var(--ink); }
+.account-value.pro { color:var(--crimson); }
+
+@keyframes fadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+
+/* RESPONSIVE */
+@media(max-width:900px) {
+  .engine-wrap { grid-template-columns:1fr; padding:20px; }
+  .sidebar { position:static; }
+  .mast-nav,.mast-right { display:none; }
+  .mast-inner { padding:0 20px; }
+  .hero { padding:56px 24px 48px; }
+  .pricing-grid { grid-template-columns:1fr; }
+  .how-steps { grid-template-columns:1fr; }
+  .art-inner { padding:28px 24px 36px; }
+  .ad-leaderboard { display:none; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ MASTHEAD ═══════════════════════════════════════════ -->
+<header class="masthead">
+  <div class="mast-inner">
+    <div class="brand" onclick="nav('landing')">
+      <div class="brand-coin">
+        <svg viewBox="0 0 24 24"><text x="12" y="17" text-anchor="middle" font-family="Georgia,serif" font-size="14" font-style="italic">¢</text></svg>
+      </div>
+      <div>
+        <div class="brand-name">Coin <em>Flip</em></div>
+        <div class="brand-sub">NIL · Betting · Athlete Money</div>
+      </div>
+    </div>
+    <nav class="mast-nav">
+      <span class="nav-link active" id="nav-landing" onclick="nav('landing')">Home</span>
+      <span class="nav-link" id="nav-engine" onclick="nav('engine')">Intelligence</span>
+      <span class="nav-link" id="nav-account" onclick="nav('account')">Account</span>
+    </nav>
+    <div class="mast-right">
+      <span class="tier-badge" id="tierBadge">Free</span>
+      <button class="btn btn-sm btn-ghost" id="authBtn">Sign In</button>
+      <button class="btn btn-sm btn-primary" id="upgradeBtn" onclick="openModal('subscribe')">Go Pro — $9/mo</button>
+    </div>
+  </div>
+  <div class="ticker">
+    <div class="ticker-tag">Live</div>
+    <div class="ticker-scroll">
+      <span class="ticker-text">
+        NIL market hits $1.67B this season <span class="ticker-sep">·</span>
+        Sports betting legal in 38 states <span class="ticker-sep">·</span>
+        Arch Manning NIL valuation: $5.4M <span class="ticker-sep">·</span>
+        House v. NCAA: $2.6B settlement to former athletes <span class="ticker-sep">·</span>
+        Football players capture 72% of all NIL dollars <span class="ticker-sep">·</span>
+        PE firms circling college athletic departments <span class="ticker-sep">·</span>
+        Deloitte vetting NIL fair market value deals <span class="ticker-sep">·</span>
+        Transfer portal reshapes campus cash flows <span class="ticker-sep">·</span>
+        NIL market hits $1.67B this season <span class="ticker-sep">·</span>
+        Sports betting legal in 38 states <span class="ticker-sep">·</span>
+        Arch Manning NIL valuation: $5.4M <span class="ticker-sep">·</span>
+        House v. NCAA: $2.6B settlement to former athletes <span class="ticker-sep">·</span>
+        Football players capture 72% of all NIL dollars &nbsp;&nbsp;&nbsp;
+      </span>
+    </div>
+  </div>
+</header>
+
+<!-- ═══ LANDING ════════════════════════════════════════════ -->
+<div class="view active" id="view-landing">
+
+  <div class="ad-leaderboard ad-wrap" id="adLeaderboard" style="padding-top:28px;">
+    <ins class="adsbygoogle" id="insLeaderboard" style="display:block;" data-ad-format="horizontal"></ins>
+  </div>
+
+  <section class="hero">
+    <div class="hero-eye">The Intelligence Layer for College Sports Money</div>
+    <h1 class="hero-h1">Where <em>NIL deals,</em><br>betting markets &amp; athlete<br>money get decoded.</h1>
+    <p class="hero-sub">Sharp, original editorial intelligence on the business of college sports — researched live, written with authority.</p>
+    <div class="hero-cta">
+      <button class="btn btn-lg btn-primary" onclick="openModal('subscribe')">Start Free</button>
+      <button class="btn btn-lg btn-outline" onclick="nav('engine')">See It in Action</button>
+    </div>
+    <div class="hero-proof">
+      <div class="proof-item"><div class="proof-num">3×</div><div class="proof-label">Weekly</div></div>
+      <div class="proof-div"></div>
+      <div class="proof-item"><div class="proof-num">$1.67B</div><div class="proof-label">NIL Market</div></div>
+      <div class="proof-div"></div>
+      <div class="proof-item"><div class="proof-num">38</div><div class="proof-label">Betting States</div></div>
+      <div class="proof-div"></div>
+      <div class="proof-item"><div class="proof-num">Live</div><div class="proof-label">Web Research</div></div>
+    </div>
+  </section>
+
+  <section class="how-wrap">
+    <div class="how-inner">
+      <div class="section-eye">How It Works</div>
+      <h2 class="section-title" style="text-align:left;margin-bottom:40px;">Intelligence on demand.</h2>
+      <div class="how-steps">
+        <div><div class="step-num">01</div><div class="step-title">Live Research</div><div class="step-body">Every story researched in real time against current web sources. No stale takes, no recycled content.</div></div>
+        <div><div class="step-num">02</div><div class="step-title">Original Editorial</div><div class="step-body">Six editorial voices — from analytical to contrarian. Your audience, your angle, your publication.</div></div>
+        <div><div class="step-num">03</div><div class="step-title">Publish & Monetize</div><div class="step-body">Copy to Beehiiv, Substack or Ghost in one click. Pro users get unlimited generations and history.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="pricing-wrap" id="pricing">
+    <div class="section-eye">Pricing</div>
+    <h2 class="section-title">Start free. Go deep with Pro.</h2>
+    <div class="pricing-grid">
+
+      <div class="p-card">
+        <div class="p-tier">Free</div>
+        <div class="p-price"><sup>$</sup>0<span>/mo</span></div>
+        <div class="p-desc">Full platform access. 5 story generations per month included.</div>
+        <ul class="p-features">
+          <li><span class="feat-y"><svg viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2.5"/></svg></span>5 story generations / month</li>
+          <li><span class="feat-y"><svg viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2.5"/></svg></span>All 6 editorial voices</li>
+          <li><span class="feat-y"><svg viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2.5"/></svg></span>Live web research</li>
+          <li><span class="feat-y"><svg viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2.5"/></svg></span>Copy to clipboard</li>
+          <li><span class="feat-n"><svg viewBox="0 0 10 10"><line x1="2" y1="2" x2="8" y2="8"/><line x1="8" y1="2" x2="2" y2="8"/></svg></span><span style="color:var(--ink-4)">Unlimited generations</span></li>
+          <li><span class="feat-n"><svg viewBox="0 0 10 10"><line x1="2" y1="2" x2="8" y2="8"/><line x1="8" y1="2" x2="2" y2="8"/></svg></span><span style="color:var(--ink-4)">Story archive (last 20)</span></li>
+          <li><span class="feat-n"><svg viewBox="0 0 10 10"><line x1="2" y1="2" x2="8" y2="8"/><line x1="8" y1="2" x2="2" y2="8"/></svg></span><span style="color:var(--ink-4)">No ads for Pro readers</span></li>
+        </ul>
+        <button class="btn btn-md btn-outline" style="width:100%;" onclick="openModal('register')">Get Started Free</button>
+      </div>
+
+      <div class="p-card featured">
+        <div class="p-badge">Most Popular</div>
+        <div class="p-tier">Pro</div>
+        <div class="p-price"><sup>$</sup>9<span>/mo</span></div>
+        <div class="p-desc">Unlimited generations, full story archive, and zero ads in your experience.</div>
+        <ul class="p-features">
+          <li><span class="feat-y"><svg viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2.5"/></svg></span>Unlimited story generations</li>
+          <li><span class="feat-y"><svg viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2.5"/></svg></span>All 6 editorial voices</li>
+          <li><span class="feat-y"><svg viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2.5"/></svg></span>Live web research</li>
+          <li><span class="feat-y"><svg viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2.5"/></svg></span>Copy article &amp; Markdown</li>
+          <li><span class="feat-y"><svg viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2.5"/></svg></span>Story archive — last 50</li>
+          <li><span class="feat-y"><svg viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2.5"/></svg></span>Deep dive (1200+ word) mode</li>
+          <li><span class="feat-y"><svg viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2.5"/></svg></span>Ad-free experience</li>
+        </ul>
+        <button class="btn btn-md btn-primary" style="width:100%;" onclick="openModal('subscribe')">Start Pro — $9/mo</button>
+      </div>
+
+    </div>
+    <div style="display:flex;justify-content:center;margin-top:48px;">
+      <div class="ad-wrap ad-rectangle" id="adRectangle" style="padding-top:28px;">
+        <ins class="adsbygoogle" id="insRectangle" style="display:block;width:300px;height:250px;" data-ad-format="rectangle"></ins>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ═══ ENGINE ═════════════════════════════════════════════ -->
+<div class="view" id="view-engine">
+  <div class="engine-wrap">
+    <aside class="sidebar">
+      <div class="panel" style="border-radius:10px 10px 0 0">
+        <div class="panel-hdr"><span class="panel-label">Story Setup</span><span class="panel-num">01</span></div>
+        <div class="field"><label>Topic</label><input type="text" id="topic" value="NIL deals and sports betting college athletes 2026" placeholder="NIL, betting, athlete money..."/></div>
+        <div class="field"><label>Publication</label><input type="text" id="pubname" value="Coin Flip"/></div>
+      </div>
+      <div class="panel">
+        <div class="panel-hdr"><span class="panel-label">Editorial Voice</span><span class="panel-num">02</span></div>
+        <div class="tone-grid">
+          <button class="tone-btn" data-tone="analytical">Analytical</button>
+          <button class="tone-btn" data-tone="contrarian">Contrarian</button>
+          <button class="tone-btn" data-tone="bullish">Bullish</button>
+          <button class="tone-btn" data-tone="investigative">Investigative</button>
+          <button class="tone-btn active" data-tone="insider">Insider</button>
+          <button class="tone-btn" data-tone="dry">Dry / Wry</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-hdr"><span class="panel-label">Parameters</span><span class="panel-num">03</span></div>
+        <div class="field"><label>Audience</label>
+          <select id="audience">
+            <option value="college sports fans and bettors aged 18-24">College Fans &amp; Bettors</option>
+            <option value="college athletes navigating NIL deals">College Athletes — NIL</option>
+            <option value="sports business and media professionals">Sports Business Pros</option>
+            <option value="PE/VC investors in sports and media">Sports Investors / PE</option>
+            <option value="college football and basketball fans">CFB / CBB Diehards</option>
+            <option value="fantasy sports and DFS players">Fantasy &amp; DFS Players</option>
+          </select>
+        </div>
+        <div class="field"><label>Length</label>
+          <select id="length">
+            <option value="brief (400-600 words)">Brief — 400–600 words</option>
+            <option value="standard (700-1000 words)" selected>Standard — 700–1000 words</option>
+            <option value="deep dive (1200-1600 words)">Deep Dive — 1200+ words</option>
+          </select>
+        </div>
+        <div class="field"><label>Angle — Optional</label><textarea id="angle" placeholder="e.g. Focus on betting companies sponsoring NIL athletes..."></textarea></div>
+      </div>
+      <div class="panel last">
+        <button class="run-btn" id="runBtn" onclick="generateStory()">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" id="runIcon"><path d="M2 1.5L12 7L2 12.5V1.5Z"/></svg>
+          <span id="runText">Generate Story</span>
+          <div class="spinner" id="runSpinner"></div>
+        </button>
+        <div class="status-line" id="statusBar">Ready to generate.</div>
+        <div class="gen-counter" id="genCounter"></div>
+      </div>
+      <div class="panel" id="histPanel" style="display:none;border-radius:10px;margin-top:16px;border:1px solid var(--rule);">
+        <div class="panel-hdr"><span class="panel-label">Recent Stories</span></div>
+        <div id="histList"></div>
+      </div>
+    </aside>
+    <main class="engine-main">
+      <div class="ad-wrap ad-banner" id="adEngineBanner" style="padding-top:26px;margin-bottom:20px;">
+        <ins class="adsbygoogle" id="insEngineBanner" style="display:block;width:468px;height:60px;" data-ad-format="horizontal"></ins>
+      </div>
+      <div class="empty-state" id="emptyState">
+        <div class="empty-glyph">CF</div>
+        <h3>Your story starts here</h3>
+        <p>Configure your topic, choose a voice, and generate a fully researched editorial.</p>
+      </div>
+      <div class="article" id="article">
+        <div class="art-stripe"></div>
+        <div class="art-inner">
+          <div class="kicker-row"><span class="kicker-tag" id="artKicker"></span><span class="live-dot">Live Research</span></div>
+          <h1 class="art-headline" id="artHeadline"></h1>
+          <p class="art-deck" id="artDeck"></p>
+          <div class="art-meta">
+            <div class="meta-pub">
+              <div class="meta-coin"><svg viewBox="0 0 24 24"><text x="12" y="17" text-anchor="middle" font-family="Georgia,serif" font-size="13" font-style="italic">¢</text></svg></div>
+              <span class="meta-pub-name" id="artPub"></span>
+            </div>
+            <div class="meta-dot"></div>
+            <span class="meta-info" id="artDate"></span>
+            <div class="meta-dot"></div>
+            <span class="meta-info" id="artReadTime"></span>
+            <span class="meta-badge" id="artTone"></span>
+          </div>
+          <div class="art-content" id="artContent"></div>
+          <!-- Mid-article ad: hidden for Pro -->
+          <div id="adMidArticle" class="ad-wrap ad-banner" style="padding-top:26px;margin:24px 0;">
+            <ins class="adsbygoogle" id="insMidArticle" style="display:block;width:468px;height:60px;" data-ad-format="horizontal"></ins>
+          </div>
+          <div class="art-sources"><div class="sources-lbl">Sources &amp; Research</div><div class="sources-wrap" id="sourcesList"></div></div>
+          <div class="art-actions">
+            <button class="action-btn action-primary" onclick="copyArticle()">Copy Article</button>
+            <button class="action-btn action-outline" onclick="copyMarkdown()">Markdown</button>
+            <button class="action-btn action-outline" onclick="generateStory()">Regenerate</button>
+            <span class="wc-badge" id="wcBadge"></span>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ═══ ACCOUNT ════════════════════════════════════════════ -->
+<div class="view" id="view-account">
+  <div class="account-wrap">
+    <h2 style="font-family:var(--serif);font-size:32px;letter-spacing:-.5px;margin-bottom:24px;">Account</h2>
+    <div class="account-card">
+      <div class="account-section-title">Profile</div>
+      <div class="account-row"><span class="account-key">Email</span><span class="account-value" id="acctEmail">—</span></div>
+      <div class="account-row"><span class="account-key">Plan</span><span class="account-value" id="acctTier">Free</span></div>
+      <div class="account-row"><span class="account-key">Status</span><span class="account-value" id="acctStatus">—</span></div>
+    </div>
+    <div class="account-card">
+      <div class="account-section-title">Usage</div>
+      <div class="account-row"><span class="account-key">Stories generated this month</span><span class="account-value" id="acctGenCount">—</span></div>
+      <div class="account-row"><span class="account-key">Monthly limit</span><span class="account-value" id="acctGenLimit">—</span></div>
+    </div>
+    <div class="account-card" id="acctBillingCard" style="display:none;">
+      <div class="account-section-title">Billing</div>
+      <p style="font-size:13px;color:var(--ink-3);line-height:1.6;margin-bottom:16px;">Manage your subscription, update payment method, or cancel anytime — all through the secure Stripe billing portal.</p>
+      <button class="btn btn-md btn-outline" onclick="openBillingPortal()" style="width:100%;">Manage Billing →</button>
+    </div>
+    <div style="margin-top:8px;">
+      <button class="btn btn-sm btn-ghost" onclick="logout()" style="color:var(--ink-4);">Sign Out</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL ══════════════════════════════════════════════ -->
+<div class="modal-bg" id="modalBg" onclick="closeBg(event)">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-title" id="modalTitle">Get Started</div>
+      <button class="modal-x" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-tabs">
+        <div class="modal-tab active" id="tab-login" onclick="switchTab('login')">Sign In</div>
+        <div class="modal-tab" id="tab-register" onclick="switchTab('register')">Create Account</div>
+      </div>
+
+      <!-- LOGIN -->
+      <div id="pane-login">
+        <div class="f-field"><label>Email</label><input type="email" id="loginEmail" placeholder="you@example.com"/></div>
+        <div class="f-field"><label>Password</label><input type="password" id="loginPassword" placeholder="••••••••"/></div>
+        <div class="err-msg" id="loginErr"></div>
+        <button class="btn btn-md btn-primary" style="width:100%;margin-top:4px;" onclick="doLogin()" id="loginBtn2">Sign In</button>
+        <p style="font-size:12px;color:var(--ink-4);text-align:center;margin-top:14px;">No account? <span style="color:var(--crimson);cursor:pointer;" onclick="switchTab('register')">Create one →</span></p>
+      </div>
+
+      <!-- REGISTER -->
+      <div id="pane-register" style="display:none;">
+        <div class="f-field"><label>Email</label><input type="email" id="regEmail" placeholder="you@example.com"/></div>
+        <div class="f-field"><label>Password</label><input type="password" id="regPassword" placeholder="Min. 8 characters"/></div>
+
+        <div style="margin-bottom:14px;">
+          <label style="font-family:var(--mono);font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-4);display:block;margin-bottom:8px;">Choose Plan</label>
+          <div class="plan-grid">
+            <div class="plan-opt" id="planFree" onclick="selectPlan('free')">
+              <div class="plan-name">Free</div>
+              <div class="plan-price">$0 / month</div>
+            </div>
+            <div class="plan-opt sel" id="planPro" onclick="selectPlan('pro')">
+              <div class="plan-name">Pro ⭐</div>
+              <div class="plan-price">$9 / month</div>
+            </div>
+          </div>
+        </div>
+
+        <div id="stripeSection">
+          <label style="font-family:var(--mono);font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-4);display:block;margin-bottom:6px;">Card Details</label>
+          <div id="card-element"></div>
+        </div>
+
+        <div class="err-msg" id="regErr"></div>
+        <button class="btn btn-md btn-primary" style="width:100%;margin-top:4px;" onclick="doRegister()" id="regBtn">
+          <span id="regBtnText">Start Pro — $9/mo</span>
+          <div class="spinner" id="regSpinner" style="border-color:rgba(255,255,255,.25);border-top-color:#fff;"></div>
+        </button>
+        <div class="secure-badge">🔒 Secured by Stripe</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+/* ─────────────────────────────────────────────────────────
+   STATE
+───────────────────────────────────────────────────────── */
+let appUser    = null;
+let selTone    = 'insider';
+let selPlan    = 'pro';
+let curArticle = null;
+let histData   = [];
+let stripe     = null;
+let cardEl     = null;
+let cfg        = {};
+
+const FREE_LIMIT = 5;
+
+/* ─────────────────────────────────────────────────────────
+   BOOT
+───────────────────────────────────────────────────────── */
+async function boot() {
+  // Load server config (Stripe PK, AdSense IDs)
+  try {
+    const r = await fetch('/api/config');
+    cfg = await r.json();
+    loadAdSense();
+  } catch(e) { console.warn('Config not loaded — running standalone'); }
+
+  // Check session
+  try {
+    const r = await fetch('/api/auth/me');
+    const d = await r.json();
+    if (d.user) { appUser = d.user; }
+  } catch(e) {}
+
+  updateUI();
+}
+
+/* ─────────────────────────────────────────────────────────
+   ADSENSE
+───────────────────────────────────────────────────────── */
+function loadAdSense() {
+  if (!cfg.adsense_pub || cfg.adsense_pub.includes('REPLACE')) return;
+
+  const script = document.createElement('script');
+  script.async = true;
+  script.src   = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${cfg.adsense_pub}`;
+  script.crossOrigin = 'anonymous';
+  document.head.appendChild(script);
+
+  script.onload = () => {
+    const s = cfg.adsense_slots || {};
+    configureAd('insLeaderboard', cfg.adsense_pub, s.leaderboard);
+    configureAd('insRectangle',   cfg.adsense_pub, s.rectangle);
+    configureAd('insEngineBanner',cfg.adsense_pub, s.banner_top);
+    configureAd('insMidArticle',  cfg.adsense_pub, s.banner_mid);
+    (adsbygoogle = window.adsbygoogle || []).push({});
+  };
+}
+
+function configureAd(insId, pub, slot) {
+  if (!slot || slot.includes('REPLACE')) return;
+  const el = document.getElementById(insId);
+  if (el) {
+    el.setAttribute('data-ad-client', pub);
+    el.setAttribute('data-ad-slot', slot);
+  }
+}
+
+/* ─────────────────────────────────────────────────────────
+   NAV
+───────────────────────────────────────────────────────── */
+function nav(view) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + view).classList.add('active');
+  document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+  const nl = document.getElementById('nav-' + view);
+  if (nl) nl.classList.add('active');
+  window.scrollTo(0,0);
+
+  if (view === 'account') refreshAccount();
+}
+
+/* ─────────────────────────────────────────────────────────
+   UI STATE
+───────────────────────────────────────────────────────── */
+function isPro() {
+  return appUser && appUser.tier === 'pro' && appUser.subscription_status === 'active';
+}
+
+function updateUI() {
+  const badge = document.getElementById('tierBadge');
+  const authB = document.getElementById('authBtn');
+  const upgrB = document.getElementById('upgradeBtn');
+
+  if (appUser) {
+    badge.textContent = isPro() ? 'Pro' : 'Free';
+    badge.className   = isPro() ? 'tier-badge pro' : 'tier-badge';
+    authB.textContent = 'Sign Out';
+    authB.onclick     = logout;
+    upgrB.style.display = isPro() ? 'none' : 'inline-flex';
+  } else {
+    badge.textContent = 'Guest';
+    badge.className   = 'tier-badge';
+    authB.textContent = 'Sign In';
+    authB.onclick     = () => openModal('login');
+    upgrB.style.display = 'inline-flex';
+  }
+
+  // Ads hidden for Pro
+  ['adMidArticle','adEngineBanner','adLeaderboard','adRectangle'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = isPro() ? 'none' : 'flex';
+  });
+
+  // Gen counter
+  updateGenCounter();
+}
+
+function updateGenCounter() {
+  const el = document.getElementById('genCounter');
+  if (!el || !appUser) { if(el) el.textContent=''; return; }
+  if (isPro()) {
+    el.textContent = 'Unlimited generations';
+  } else {
+    const rem = Math.max(0, FREE_LIMIT - (appUser.gen_count || 0));
+    el.textContent = `${rem} of ${FREE_LIMIT} free generations remaining this month`;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────
+   MODAL
+───────────────────────────────────────────────────────── */
+function openModal(tab) {
+  document.getElementById('modalBg').classList.add('open');
+  switchTab(tab === 'subscribe' ? 'register' : (tab || 'login'));
+  if ((tab === 'subscribe' || tab === 'register') && !stripe && cfg.stripe_pk) initStripe();
+}
+
+function closeModal() { document.getElementById('modalBg').classList.remove('open'); }
+function closeBg(e)   { if (e.target === document.getElementById('modalBg')) closeModal(); }
+
+function switchTab(tab) {
+  ['login','register'].forEach(t => {
+    document.getElementById('tab-'  + t).classList.toggle('active', t === tab);
+    document.getElementById('pane-' + t).style.display = t === tab ? 'block' : 'none';
+  });
+  if (tab === 'register' && !stripe && cfg.stripe_pk) initStripe();
+}
+
+function selectPlan(plan) {
+  selPlan = plan;
+  document.getElementById('planFree').classList.toggle('sel', plan === 'free');
+  document.getElementById('planPro').classList.toggle('sel', plan === 'pro');
+  document.getElementById('stripeSection').style.display = plan === 'pro' ? 'block' : 'none';
+  document.getElementById('regBtnText').textContent = plan === 'pro' ? 'Start Pro — $9/mo' : 'Create Free Account';
+}
+
+/* ─────────────────────────────────────────────────────────
+   STRIPE
+───────────────────────────────────────────────────────── */
+function initStripe() {
+  if (!cfg.stripe_pk || cfg.stripe_pk.includes('REPLACE')) {
+    console.warn('Add your Stripe publishable key to .env');
+    return;
+  }
+  stripe = Stripe(cfg.stripe_pk);
+  const els = stripe.elements();
+  cardEl = els.create('card', {
+    style: {
+      base: {
+        fontFamily: "'DM Sans', system-ui, sans-serif",
+        fontSize: '14px', color: '#0D0D0D',
+        '::placeholder': { color: '#8C8C8C' }
+      },
+      invalid: { color: '#C8102E' }
+    }
+  });
+  cardEl.mount('#card-element');
+  cardEl.on('change', ({error}) => {
+    document.getElementById('regErr').textContent = error ? error.message : '';
+  });
+}
+
+/* ─────────────────────────────────────────────────────────
+   AUTH
+───────────────────────────────────────────────────────── */
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass  = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginErr');
+  const btn   = document.getElementById('loginBtn2');
+  errEl.textContent = '';
+  if (!email || !pass) { errEl.textContent = 'Please fill in all fields.'; return; }
+  btn.disabled = true; btn.textContent = 'Signing in…';
+  try {
+    const r = await api('/api/auth/login', 'POST', { email, password: pass });
+    appUser = r.user;
+    updateUI();
+    closeModal();
+    nav('engine');
+  } catch(e) {
+    errEl.textContent = e.message;
+  } finally {
+    btn.disabled = false; btn.textContent = 'Sign In';
+  }
+}
+
+async function doRegister() {
+  const email = document.getElementById('regEmail').value.trim();
+  const pass  = document.getElementById('regPassword').value;
+  const errEl = document.getElementById('regErr');
+  const btn   = document.getElementById('regBtn');
+  const spin  = document.getElementById('regSpinner');
+  const txt   = document.getElementById('regBtnText');
+  errEl.textContent = '';
+  if (!email || !pass) { errEl.textContent = 'Please fill in all fields.'; return; }
+
+  btn.disabled = true; spin.style.display = 'block'; txt.style.display = 'none';
+
+  try {
+    // 1. Create account
+    const r = await api('/api/auth/register', 'POST', { email, password: pass });
+    appUser = r.user;
+
+    if (selPlan === 'pro' && stripe && cardEl) {
+      // 2. Create Stripe Checkout Session (server-side), redirect to Stripe
+      const cr = await api('/api/stripe/create-checkout-session', 'POST', {});
+      if (cr.url) {
+        window.location.href = cr.url;
+        return;
+      }
+    }
+
+    updateUI();
+    closeModal();
+    nav('engine');
+
+  } catch(e) {
+    errEl.textContent = e.message;
+  } finally {
+    btn.disabled = false; spin.style.display = 'none'; txt.style.display = 'inline';
+  }
+}
+
+async function logout() {
+  try { await api('/api/auth/logout', 'POST', {}); } catch(e) {}
+  appUser = null;
+  updateUI();
+  nav('landing');
+}
+
+/* ─────────────────────────────────────────────────────────
+   BILLING PORTAL
+───────────────────────────────────────────────────────── */
+async function openBillingPortal() {
+  try {
+    const r = await api('/api/stripe/create-portal-session', 'POST', {});
+    if (r.url) window.location.href = r.url;
+  } catch(e) {
+    alert('Could not open billing portal: ' + e.message);
+  }
+}
+
+/* ─────────────────────────────────────────────────────────
+   ACCOUNT VIEW
+───────────────────────────────────────────────────────── */
+function refreshAccount() {
+  if (!appUser) { nav('landing'); openModal('login'); return; }
+  document.getElementById('acctEmail').textContent  = appUser.email;
+  document.getElementById('acctTier').textContent   = isPro() ? 'Pro' : 'Free';
+  document.getElementById('acctTier').className     = isPro() ? 'account-value pro' : 'account-value';
+  document.getElementById('acctStatus').textContent = appUser.subscription_status || 'inactive';
+  document.getElementById('acctGenCount').textContent = appUser.gen_count || 0;
+  document.getElementById('acctGenLimit').textContent = isPro() ? 'Unlimited' : `${FREE_LIMIT} / month`;
+  document.getElementById('acctBillingCard').style.display = appUser.stripe_customer_id ? 'block' : 'none';
+}
+
+/* ─────────────────────────────────────────────────────────
+   TONE BUTTONS
+───────────────────────────────────────────────────────── */
+document.querySelectorAll('.tone-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tone-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selTone = btn.dataset.tone;
+  });
+});
+
+/* ─────────────────────────────────────────────────────────
+   GENERATION
+───────────────────────────────────────────────────────── */
+function setStatus(msg, type='') {
+  const el = document.getElementById('statusBar');
+  el.textContent = msg;
+  el.className = 'status-line ' + type;
+}
+
+function setRunLoading(on) {
+  document.getElementById('runBtn').disabled = on;
+  document.getElementById('runSpinner').style.display = on ? 'block' : 'none';
+  document.getElementById('runText').style.display    = on ? 'none'  : 'inline';
+  document.getElementById('runIcon').style.display    = on ? 'none'  : 'block';
+}
+
+async function generateStory() {
+  if (!appUser) { openModal('login'); return; }
+
+  const topic = document.getElementById('topic').value.trim();
+  if (!topic) { setStatus('Please enter a topic.', 'error'); return; }
+
+  setRunLoading(true);
+  setStatus('Searching live sources…', 'live');
+  document.getElementById('emptyState').style.display = 'flex';
+  document.getElementById('article').style.display    = 'none';
+
+  try {
+    const r = await api('/api/stories/generate', 'POST', {
+      topic,
+      tone:     selTone,
+      audience: document.getElementById('audience').value,
+      length:   document.getElementById('length').value,
+      angle:    document.getElementById('angle').value.trim(),
+      pubName:  document.getElementById('pubname').value.trim() || 'Coin Flip',
+    });
+
+    setStatus('Writing your story…', 'live');
+
+    // Update user state
+    if (appUser) {
+      appUser.gen_count = r.gen_count;
+      updateGenCounter();
+    }
+
+    renderArticle(r.story);
+    loadHistory();
+
+    const rem = r.is_pro ? '∞' : `${Math.max(0, FREE_LIMIT - r.gen_count)} remaining`;
+    setStatus(`Story ready — ${wordCount(r.story.body)} words · ${rem} this month`, 'live');
+
+  } catch(e) {
+    setStatus(e.message, 'error');
+    if (e.upgrade) openModal('subscribe');
+    document.getElementById('emptyState').style.display = 'flex';
+  } finally {
+    setRunLoading(false);
+  }
+}
+
+/* ─────────────────────────────────────────────────────────
+   RENDER
+───────────────────────────────────────────────────────── */
+function renderArticle(data) {
+  curArticle = data;
+  document.getElementById('artKicker').textContent   = data.kicker   || 'ANALYSIS';
+  document.getElementById('artHeadline').textContent = data.headline || '';
+  document.getElementById('artDeck').textContent     = data.deck     || '';
+  document.getElementById('artPub').textContent      = document.getElementById('pubname').value || 'Coin Flip';
+  document.getElementById('artDate').textContent     = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  document.getElementById('artTone').textContent     = selTone.charAt(0).toUpperCase() + selTone.slice(1);
+
+  const wc = wordCount(data.body);
+  document.getElementById('artReadTime').textContent = `${Math.ceil(wc/220)} min read`;
+  document.getElementById('wcBadge').textContent     = `≈ ${wc} words`;
+
+  const content = document.getElementById('artContent');
+  content.innerHTML = '';
+
+  (data.body || []).forEach((para, i) => {
+    if (para.startsWith('pullquote:')) {
+      const wrap = document.createElement('div'); wrap.className = 'pullquote';
+      const rule = document.createElement('div'); rule.className = 'pq-rule';
+      const txt  = document.createElement('div'); txt.className  = 'pq-text';
+      txt.textContent = para.replace('pullquote:','').trim();
+      wrap.appendChild(rule); wrap.appendChild(txt);
+      content.appendChild(wrap);
+    } else {
+      const p = document.createElement('p');
+      p.textContent = para;
+      content.appendChild(p);
+    }
+  });
+
+  const srcList = document.getElementById('sourcesList');
+  srcList.innerHTML = '';
+  (data.sources || []).forEach(s => {
+    const pill = document.createElement('span'); pill.className = 'source-pill';
+    pill.textContent = s; srcList.appendChild(pill);
+  });
+
+  document.getElementById('adMidArticle').style.display = isPro() ? 'none' : 'flex';
+  document.getElementById('emptyState').style.display   = 'none';
+  document.getElementById('article').style.display      = 'block';
+  document.getElementById('article').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/* ─────────────────────────────────────────────────────────
+   HISTORY
+───────────────────────────────────────────────────────── */
+async function loadHistory() {
+  if (!appUser) return;
+  try {
+    const r = await api('/api/stories/history', 'GET');
+    histData = r.stories || [];
+    renderHistory();
+  } catch(e) {}
+}
+
+function renderHistory() {
+  const panel = document.getElementById('histPanel');
+  const list  = document.getElementById('histList');
+  if (!histData.length) { panel.style.display='none'; return; }
+  panel.style.display = 'block';
+  list.innerHTML = '';
+  histData.forEach(s => {
+    const d = document.createElement('div'); d.className = 'hist-item';
+    const time = new Date(s.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+    d.innerHTML = `<div class="hist-hed">${s.headline || s.topic}</div><div class="hist-meta">${s.tone} · ${time}</div>`;
+    d.onclick = async () => {
+      try {
+        const r = await api('/api/stories/' + s.id, 'GET');
+        renderArticle(r.story);
+        setStatus('Story loaded.', 'live');
+      } catch(e) { setStatus(e.message, 'error'); }
+    };
+    list.appendChild(d);
+  });
+}
+
+/* ─────────────────────────────────────────────────────────
+   COPY
+───────────────────────────────────────────────────────── */
+function copyArticle() {
+  if (!curArticle) return;
+  const d = curArticle;
+  const text = [d.headline, d.deck, '', ...(d.body||[]).map(p => p.startsWith('pullquote:') ? `"${p.replace('pullquote:','').trim()}"` : p)].join('\n\n');
+  navigator.clipboard.writeText(text).then(() => setStatus('Copied to clipboard.', 'live'));
+}
+
+function copyMarkdown() {
+  if (!curArticle) return;
+  const d   = curArticle;
+  const pub  = document.getElementById('pubname').value;
+  const date = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  const md   = [`# ${d.headline}`,`*${d.deck}*`,'',`**${d.byline||'Staff Writer'}** · ${pub} · ${date}`,'', ...(d.body||[]).map(p => p.startsWith('pullquote:') ? `> ${p.replace('pullquote:','').trim()}` : p),'','---','**Sources**',...(d.sources||[]).map(s=>`- ${s}`)].join('\n\n');
+  navigator.clipboard.writeText(md).then(() => setStatus('Markdown copied.', 'live'));
+}
+
+/* ─────────────────────────────────────────────────────────
+   API HELPER
+───────────────────────────────────────────────────────── */
+async function api(url, method='GET', body=null) {
+  const opts = {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin'
+  };
+  if (body && method !== 'GET') opts.body = JSON.stringify(body);
+  const r = await fetch(url, opts);
+  const d = await r.json();
+  if (!r.ok) {
+    const err = new Error(d.error || 'Request failed');
+    err.upgrade = d.upgrade;
+    throw err;
+  }
+  return d;
+}
+
+function wordCount(body) { return (body||[]).join(' ').split(/\s+/).filter(Boolean).length; }
+
+/* ─────────────────────────────────────────────────────────
+   CHECK FOR STRIPE SUCCESS REDIRECT
+───────────────────────────────────────────────────────── */
+(async () => {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('session_id')) {
+    // Stripe redirected back — refresh user and go to engine
+    try {
+      const r = await fetch('/api/auth/me');
+      const d = await r.json();
+      if (d.user) appUser = d.user;
+    } catch(e) {}
+    window.history.replaceState({}, '', '/');
+    updateUI();
+    nav('engine');
+    setStatus('Welcome to Pro! Unlimited generations unlocked.', 'live');
+  } else {
+    boot();
+  }
+})();
+
+// Initial history load when engine view is opened
+document.getElementById('nav-engine').addEventListener('click', loadHistory);
+</script>
+</body>
+</html>

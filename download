@@ -1,0 +1,162 @@
+// routes/stories.js
+const express  = require('express');
+const { v4: uuidv4 } = require('uuid');
+const { q }    = require('../db');
+const { requireAuth, checkGenerationLimit } = require('../middleware/auth');
+
+const router = express.Router();
+
+// ── GENERATE STORY ────────────────────────────────────────
+router.post('/generate', requireAuth, checkGenerationLimit, async (req, res) => {
+  const { topic, tone, audience, length, angle, pubName } = req.body;
+
+  if (!topic || !topic.trim()) {
+    return res.status(400).json({ error: 'Topic is required.' });
+  }
+
+  const tones = {
+    analytical:    'deeply analytical and data-driven — precise, structured, authoritative',
+    contrarian:    'confidently contrarian — challenges consensus with evidence-backed reasoning',
+    bullish:       'bullish and forward-looking — highlights opportunity and upside with conviction',
+    investigative: 'investigative — surfaces what others miss, asks uncomfortable questions',
+    insider:       'insider perspective — direct, written as if the author has genuine front-office access',
+    dry:           'dry and wry — intelligent, measured, finds the quiet absurdity in the situation'
+  };
+
+  const selectedTone = tones[tone] || tones.insider;
+
+  const systemPrompt = `You are the lead writer for "${pubName || 'Coin Flip'}" — a sharp, professional publication covering NIL money, sports betting, athlete finances, and college sports business. Your standard: The Athletic meets Front Office Sports. Writing style: ${selectedTone}.
+
+Audience: ${audience || 'college sports fans and bettors'}. Authority and precision. Strong positions backed by real data. Crisp, never juvenile.
+
+RESPOND WITH VALID JSON ONLY — no markdown, no extra text. Exact schema:
+{
+  "kicker": "2–4 WORD SECTION LABEL IN CAPS (e.g. NIL MONEY / THE SPREAD / ANALYSIS / CAMPUS DEALS)",
+  "headline": "Sharp specific headline under 12 words — authoritative and memorable",
+  "deck": "2 crisp sentences expanding the headline. Clear, intelligent, not sensational.",
+  "byline": "Staff Writer",
+  "body": ["paragraph1", "paragraph2", "pullquote: the single sharpest insight or stat from the piece", "paragraph3", ...],
+  "sources": ["concise source name or description 1", "source 2", ...]
+}
+8–14 items in body array. Exactly ONE must start with "pullquote: ". Target ${length || 'standard (700-1000 words)'}.${angle ? ' Editorial angle: ' + angle : ''}`;
+
+  const userPrompt = `Search the web for the latest news on: "${topic.trim()}"\n\nWrite a completely original editorial — no copying source text. Synthesize, analyze, editorialize. Real names, real numbers, real stakes. Make it essential reading.`;
+
+  try {
+    // First call with web search tool
+    const r1 = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY || '',
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: systemPrompt,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        messages: [{ role: 'user', content: userPrompt }]
+      })
+    });
+
+    const d1 = await r1.json();
+    if (!r1.ok) throw new Error(d1.error?.message || 'API error');
+
+    let article = parseArticle(d1.content);
+
+    // Follow-up if needed (web search returned tool calls)
+    if (!article) {
+      const r2 = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': process.env.ANTHROPIC_API_KEY || '',
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          system: systemPrompt,
+          messages: [
+            { role: 'user', content: userPrompt },
+            { role: 'assistant', content: d1.content },
+            { role: 'user', content: 'Now output the complete article JSON.' }
+          ]
+        })
+      });
+      const d2 = await r2.json();
+      article = parseArticle(d2.content);
+    }
+
+    if (!article) {
+      return res.status(500).json({ error: 'Could not generate article. Please try again.' });
+    }
+
+    // Save story + increment generation count
+    const storyId = uuidv4();
+    const currentMonth = new Date().toISOString().slice(0, 7);
+
+    q.saveStory.run({
+      id:      storyId,
+      user_id: req.user.id,
+      topic:   topic.trim(),
+      tone:    tone || 'insider',
+      headline: article.headline || '',
+      payload: JSON.stringify(article)
+    });
+
+    q.incrementGenCount.run({ month: currentMonth, id: req.user.id });
+    q.deleteOldStories.run(req.user.id, req.user.id);
+
+    // Return refreshed user state
+    const freshUser = q.getUserById.get(req.user.id);
+    const isPro = freshUser.tier === 'pro' && freshUser.subscription_status === 'active';
+
+    res.json({
+      story:     { id: storyId, ...article },
+      gen_count: freshUser.gen_count,
+      gen_limit: isPro ? null : 5,
+      is_pro:    isPro
+    });
+
+  } catch (err) {
+    console.error('Generation error:', err);
+    res.status(500).json({ error: err.message || 'Generation failed.' });
+  }
+});
+
+// ── GET STORY HISTORY ─────────────────────────────────────
+router.get('/history', requireAuth, (req, res) => {
+  const stories = q.getStories.all(req.user.id);
+  res.json({ stories });
+});
+
+// ── GET SINGLE STORY ──────────────────────────────────────
+router.get('/:id', requireAuth, (req, res) => {
+  const story = q.getStory.get(req.params.id, req.user.id);
+  if (!story) return res.status(404).json({ error: 'Story not found.' });
+
+  res.json({
+    story: {
+      id: story.id,
+      topic: story.topic,
+      tone: story.tone,
+      created_at: story.created_at,
+      ...JSON.parse(story.payload)
+    }
+  });
+});
+
+// ── HELPERS ───────────────────────────────────────────────
+function parseArticle(content) {
+  if (!Array.isArray(content)) return null;
+  for (const block of content.filter(b => b.type === 'text')) {
+    try {
+      return JSON.parse(block.text.replace(/```json|```/g, '').trim());
+    } catch (e) { /* continue */ }
+  }
+  return null;
+}
+
+module.exports = router;
