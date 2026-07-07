@@ -91,6 +91,18 @@
     font-weight: 700; cursor: pointer;
   }
   .btn-add:hover { background: var(--accent-dim); }
+  .btn-est {
+    margin-top: 10px; width: 100%; background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--accent); border-radius: 9px; padding: 10px;
+    font-size: 0.92rem; font-weight: 600; cursor: pointer;
+  }
+  .btn-est:hover { background: #2f4460; }
+  .est-status {
+    margin-top: 10px; font-size: 0.82rem; color: var(--muted);
+    min-height: 1.1em; text-align: center;
+  }
+  .est-status.ok { color: var(--accent); }
+  .est-status.warn { color: var(--cal); }
 
   /* Entries */
   .meal-group { margin-bottom: 16px; }
@@ -158,8 +170,8 @@
     <form id="foodForm">
       <div class="form-grid">
         <div class="full">
-          <label class="field" for="fName">Food</label>
-          <input type="text" id="fName" placeholder="e.g. Grilled chicken salad" required>
+          <label class="field" for="fName">Food (describe it, then tap Estimate)</label>
+          <input type="text" id="fName" placeholder="e.g. 2 eggs and 1 cup rice" required>
         </div>
         <div>
           <label class="field" for="fMeal">Meal</label>
@@ -172,7 +184,7 @@
         </div>
         <div>
           <label class="field" for="fCal">Calories</label>
-          <input type="number" id="fCal" min="0" step="1" placeholder="0" required>
+          <input type="number" id="fCal" min="0" step="1" placeholder="auto">
         </div>
         <div>
           <label class="field" for="fPro">Protein (g)</label>
@@ -187,6 +199,8 @@
           <input type="number" id="fFat" min="0" step="0.1" placeholder="0">
         </div>
       </div>
+      <button type="button" id="estimateBtn" class="btn-est">✨ Estimate from description</button>
+      <div class="est-status" id="estStatus"></div>
       <button type="submit" class="btn-add">+ Add food</button>
     </form>
   </div>
@@ -313,9 +327,248 @@
     });
   }
 
+  // ===================================================================
+  //  Offline nutrition estimator
+  //  Values are per typical serving (g = grams in that serving), so a
+  //  weight (e.g. "150g") scales by grams and a count (e.g. "2") scales
+  //  by servings. Everything runs locally — no network, no API key.
+  // ===================================================================
+  var FOODS = [
+    // Proteins
+    { a: ["chicken breast", "grilled chicken", "chicken"], g: 120, kcal: 198, pro: 37, carb: 0, fat: 4.3 },
+    { a: ["chicken thigh"], g: 110, kcal: 235, pro: 26, carb: 0, fat: 14 },
+    { a: ["chicken wing", "wings", "buffalo wings"], g: 30, kcal: 86, pro: 8, carb: 0, fat: 6 },
+    { a: ["turkey breast", "turkey"], g: 120, kcal: 155, pro: 34, carb: 0, fat: 1.7 },
+    { a: ["ground beef", "beef", "hamburger patty", "beef patty"], g: 100, kcal: 250, pro: 26, carb: 0, fat: 15 },
+    { a: ["steak", "sirloin"], g: 170, kcal: 380, pro: 46, carb: 0, fat: 20 },
+    { a: ["pork chop", "pork"], g: 120, kcal: 250, pro: 27, carb: 0, fat: 15 },
+    { a: ["bacon"], g: 8, kcal: 43, pro: 3, carb: 0, fat: 3.3 },
+    { a: ["sausage"], g: 50, kcal: 150, pro: 8, carb: 1, fat: 13 },
+    { a: ["salmon"], g: 120, kcal: 240, pro: 25, carb: 0, fat: 15 },
+    { a: ["tuna", "canned tuna"], g: 100, kcal: 116, pro: 26, carb: 0, fat: 1 },
+    { a: ["shrimp", "prawns"], g: 85, kcal: 84, pro: 18, carb: 0, fat: 1 },
+    { a: ["cod", "white fish", "tilapia"], g: 120, kcal: 105, pro: 23, carb: 0, fat: 1 },
+    { a: ["tofu"], g: 100, kcal: 76, pro: 8, carb: 1.9, fat: 4.8 },
+    { a: ["egg", "eggs", "boiled egg", "fried egg", "scrambled egg"], g: 50, kcal: 78, pro: 6, carb: 0.6, fat: 5 },
+    { a: ["egg white", "egg whites"], g: 33, kcal: 17, pro: 3.6, carb: 0.2, fat: 0 },
+
+    // Grains / starches
+    { a: ["white rice", "rice", "cooked rice"], g: 158, kcal: 205, pro: 4.3, carb: 45, fat: 0.4 },
+    { a: ["brown rice"], g: 195, kcal: 216, pro: 5, carb: 45, fat: 1.8 },
+    { a: ["pasta", "spaghetti", "noodles"], g: 140, kcal: 220, pro: 8, carb: 43, fat: 1.3 },
+    { a: ["bread", "toast", "slice of bread"], g: 28, kcal: 75, pro: 3, carb: 14, fat: 1 },
+    { a: ["bagel"], g: 105, kcal: 289, pro: 11, carb: 56, fat: 1.7 },
+    { a: ["tortilla", "wrap"], g: 45, kcal: 140, pro: 4, carb: 24, fat: 3.5 },
+    { a: ["oats", "oatmeal", "porridge"], g: 40, kcal: 150, pro: 5, carb: 27, fat: 3 },
+    { a: ["cereal"], g: 40, kcal: 150, pro: 3, carb: 33, fat: 1.5 },
+    { a: ["potato", "baked potato"], g: 173, kcal: 161, pro: 4.3, carb: 37, fat: 0.2 },
+    { a: ["mashed potato", "mashed potatoes"], g: 210, kcal: 214, pro: 4, carb: 35, fat: 8 },
+    { a: ["french fries", "fries", "chips"], g: 117, kcal: 365, pro: 4, carb: 48, fat: 17 },
+    { a: ["quinoa"], g: 185, kcal: 222, pro: 8, carb: 39, fat: 3.6 },
+    { a: ["pancake", "pancakes"], g: 40, kcal: 90, pro: 2, carb: 15, fat: 2.5 },
+
+    // Fast food / dishes
+    { a: ["pizza", "slice of pizza"], g: 107, kcal: 285, pro: 12, carb: 36, fat: 10 },
+    { a: ["cheeseburger", "burger"], g: 150, kcal: 300, pro: 15, carb: 33, fat: 14 },
+    { a: ["sandwich"], g: 200, kcal: 350, pro: 15, carb: 40, fat: 14 },
+    { a: ["hot dog", "hotdog"], g: 98, kcal: 290, pro: 10, carb: 22, fat: 18 },
+    { a: ["burrito"], g: 240, kcal: 480, pro: 18, carb: 60, fat: 18 },
+    { a: ["taco"], g: 100, kcal: 210, pro: 9, carb: 21, fat: 10 },
+    { a: ["sushi roll", "sushi"], g: 170, kcal: 255, pro: 9, carb: 38, fat: 7 },
+    { a: ["salad", "green salad", "garden salad"], g: 150, kcal: 80, pro: 3, carb: 8, fat: 4 },
+    { a: ["caesar salad"], g: 200, kcal: 310, pro: 10, carb: 12, fat: 26 },
+    { a: ["soup"], g: 245, kcal: 120, pro: 6, carb: 15, fat: 4 },
+
+    // Dairy
+    { a: ["milk", "whole milk"], g: 244, kcal: 122, pro: 8, carb: 12, fat: 4.8 },
+    { a: ["skim milk", "nonfat milk"], g: 244, kcal: 83, pro: 8, carb: 12, fat: 0.2 },
+    { a: ["greek yogurt", "yogurt"], g: 170, kcal: 100, pro: 17, carb: 6, fat: 0.7 },
+    { a: ["cheese", "cheddar"], g: 28, kcal: 113, pro: 7, carb: 0.4, fat: 9 },
+    { a: ["mozzarella", "string cheese"], g: 28, kcal: 85, pro: 6, carb: 1, fat: 6 },
+    { a: ["butter"], g: 14, kcal: 100, pro: 0.1, carb: 0, fat: 11 },
+    { a: ["cottage cheese"], g: 113, kcal: 92, pro: 12, carb: 4, fat: 2.6 },
+    { a: ["ice cream"], g: 66, kcal: 137, pro: 2.3, carb: 16, fat: 7 },
+
+    // Fruit
+    { a: ["banana"], g: 118, kcal: 105, pro: 1.3, carb: 27, fat: 0.4 },
+    { a: ["apple"], g: 182, kcal: 95, pro: 0.5, carb: 25, fat: 0.3 },
+    { a: ["orange"], g: 131, kcal: 62, pro: 1.2, carb: 15, fat: 0.2 },
+    { a: ["strawberries", "strawberry"], g: 144, kcal: 46, pro: 1, carb: 11, fat: 0.4 },
+    { a: ["blueberries", "blueberry"], g: 148, kcal: 84, pro: 1.1, carb: 21, fat: 0.5 },
+    { a: ["grapes"], g: 92, kcal: 62, pro: 0.6, carb: 16, fat: 0.3 },
+    { a: ["avocado"], g: 150, kcal: 240, pro: 3, carb: 13, fat: 22 },
+    { a: ["mango"], g: 165, kcal: 99, pro: 1.4, carb: 25, fat: 0.6 },
+
+    // Veg
+    { a: ["broccoli"], g: 91, kcal: 31, pro: 2.5, carb: 6, fat: 0.3 },
+    { a: ["carrot", "carrots"], g: 61, kcal: 25, pro: 0.6, carb: 6, fat: 0.1 },
+    { a: ["spinach"], g: 30, kcal: 7, pro: 0.9, carb: 1.1, fat: 0.1 },
+    { a: ["tomato"], g: 123, kcal: 22, pro: 1.1, carb: 4.8, fat: 0.2 },
+    { a: ["corn"], g: 154, kcal: 132, pro: 5, carb: 29, fat: 1.8 },
+    { a: ["sweet potato"], g: 130, kcal: 112, pro: 2, carb: 26, fat: 0.1 },
+    { a: ["beans", "black beans", "kidney beans"], g: 172, kcal: 227, pro: 15, carb: 41, fat: 0.9 },
+    { a: ["lentils"], g: 198, kcal: 230, pro: 18, carb: 40, fat: 0.8 },
+    { a: ["chickpeas", "hummus"], g: 164, kcal: 269, pro: 15, carb: 45, fat: 4 },
+
+    // Nuts / snacks / sweets
+    { a: ["almonds", "almond"], g: 28, kcal: 164, pro: 6, carb: 6, fat: 14 },
+    { a: ["peanuts", "peanut"], g: 28, kcal: 161, pro: 7, carb: 4.6, fat: 14 },
+    { a: ["peanut butter"], g: 32, kcal: 188, pro: 8, carb: 6, fat: 16 },
+    { a: ["walnuts"], g: 28, kcal: 185, pro: 4.3, carb: 3.9, fat: 18 },
+    { a: ["cashews"], g: 28, kcal: 157, pro: 5, carb: 9, fat: 12 },
+    { a: ["chocolate", "chocolate bar"], g: 40, kcal: 214, pro: 3, carb: 24, fat: 12 },
+    { a: ["cookie", "cookies"], g: 30, kcal: 145, pro: 1.6, carb: 20, fat: 7 },
+    { a: ["donut", "doughnut"], g: 60, kcal: 250, pro: 3, carb: 30, fat: 14 },
+    { a: ["potato chips", "crisps"], g: 28, kcal: 152, pro: 2, carb: 15, fat: 10 },
+    { a: ["popcorn"], g: 8, kcal: 31, pro: 1, carb: 6, fat: 0.4 },
+    { a: ["protein bar"], g: 60, kcal: 220, pro: 20, carb: 22, fat: 7 },
+    { a: ["protein shake", "protein powder", "whey"], g: 32, kcal: 120, pro: 24, carb: 3, fat: 1.5 },
+
+    // Drinks
+    { a: ["orange juice", "oj"], g: 248, kcal: 112, pro: 1.7, carb: 26, fat: 0.5 },
+    { a: ["coffee", "black coffee"], g: 240, kcal: 2, pro: 0.3, carb: 0, fat: 0 },
+    { a: ["latte"], g: 240, kcal: 120, pro: 8, carb: 12, fat: 4.5 },
+    { a: ["soda", "cola", "soft drink"], g: 355, kcal: 140, pro: 0, carb: 39, fat: 0 },
+    { a: ["beer"], g: 355, kcal: 154, pro: 1.6, carb: 13, fat: 0 },
+    { a: ["wine"], g: 147, kcal: 125, pro: 0.1, carb: 4, fat: 0 },
+    { a: ["smoothie"], g: 300, kcal: 200, pro: 4, carb: 44, fat: 1.5 },
+
+    // Condiments / extras
+    { a: ["olive oil", "oil"], g: 14, kcal: 119, pro: 0, carb: 0, fat: 14 },
+    { a: ["mayonnaise", "mayo"], g: 14, kcal: 94, pro: 0.1, carb: 0.1, fat: 10 },
+    { a: ["ketchup"], g: 17, kcal: 17, pro: 0.2, carb: 4.5, fat: 0 },
+    { a: ["honey"], g: 21, kcal: 64, pro: 0.1, carb: 17, fat: 0 },
+    { a: ["sugar"], g: 4, kcal: 16, pro: 0, carb: 4, fat: 0 }
+  ];
+
+  // Build a lookup index sorted by alias length (longest first = greedy match)
+  var ALIAS_INDEX = (function () {
+    var idx = [];
+    FOODS.forEach(function (f) {
+      f.a.forEach(function (name) { idx.push({ name: name, food: f }); });
+    });
+    idx.sort(function (x, y) { return y.name.length - x.name.length; });
+    return idx;
+  })();
+
+  var WORD_NUM = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5,
+    six: 6, seven: 7, eight: 8, nine: 9, ten: 10, twelve: 12, half: 0.5, dozen: 12 };
+  var WEIGHT_UNITS = { g: 1, gg: 1, gm: 1, gram: 1, grams: 1, gramme: 1, grammes: 1,
+    kg: 1000, kgs: 1000, kilo: 1000, kilogram: 1000, kilograms: 1000,
+    oz: 28.35, ounce: 28.35, ounces: 28.35, lb: 453.6, lbs: 453.6, pound: 453.6, pounds: 453.6 };
+  var SIZE_MULT = { small: 0.75, sml: 0.75, medium: 1, med: 1, regular: 1, large: 1.35, lg: 1.35, big: 1.35 };
+  var COUNT_MULT = { handful: 0.5, glass: 1, cup: 1, cups: 1, bowl: 1.5, plate: 1.5,
+    slice: 1, slices: 1, piece: 1, pieces: 1, serving: 1, servings: 1, scoop: 1,
+    stick: 1, can: 1, bottle: 1, clove: 1, tbsp: 1, tablespoon: 1, tsp: 0.33, teaspoon: 0.33 };
+
+  function parseQuantity(tokens) {
+    // Returns { qty, sizeMult, weightGrams, rest } consuming leading quantity/unit tokens.
+    var qty = null, sizeMult = 1, weightGrams = null, i = 0;
+
+    // leading number: mixed fraction "1 1/2", fraction "1/2", decimal, or word
+    function readNum(tok) {
+      if (tok == null) return null;
+      if (/^\d+\/\d+$/.test(tok)) { var p = tok.split("/"); return +p[0] / +p[1]; }
+      if (/^\d*\.?\d+$/.test(tok)) return parseFloat(tok);
+      if (WORD_NUM.hasOwnProperty(tok)) return WORD_NUM[tok];
+      return null;
+    }
+    var n = readNum(tokens[i]);
+    if (n != null) {
+      qty = n; i++;
+      var frac = readNum(tokens[i]);
+      if (frac != null && frac < 1 && /\//.test(tokens[i])) { qty += frac; i++; } // "1 1/2"
+    }
+
+    // optional unit
+    var u = tokens[i];
+    if (u != null) {
+      if (WEIGHT_UNITS.hasOwnProperty(u)) { weightGrams = (qty == null ? 1 : qty) * WEIGHT_UNITS[u]; i++; }
+      else if (SIZE_MULT.hasOwnProperty(u)) { sizeMult = SIZE_MULT[u]; i++; }
+      else if (COUNT_MULT.hasOwnProperty(u)) { qty = (qty == null ? 1 : qty) * COUNT_MULT[u]; i++; }
+    }
+    return { qty: qty, sizeMult: sizeMult, weightGrams: weightGrams, rest: tokens.slice(i).join(" ") };
+  }
+
+  function matchFood(text) {
+    text = " " + text.replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim() + " ";
+    for (var k = 0; k < ALIAS_INDEX.length; k++) {
+      var name = ALIAS_INDEX[k].name;
+      if (text.indexOf(" " + name + " ") !== -1) return ALIAS_INDEX[k].food;
+      // tolerate simple plural on last word of a multi/one-word alias
+      if (text.indexOf(" " + name + "s ") !== -1) return ALIAS_INDEX[k].food;
+    }
+    return null;
+  }
+
+  function estimate(desc) {
+    // Split a description into food segments and sum their nutrition.
+    var segments = desc.toLowerCase()
+      .replace(/\bwith\b|\bplus\b|&|\+/g, ",")
+      .replace(/\band\b/g, ",")
+      .split(",");
+    var total = { cal: 0, pro: 0, carb: 0, fat: 0 };
+    var matched = [], unmatched = [];
+
+    segments.forEach(function (seg) {
+      seg = seg.trim();
+      if (!seg) return;
+      // glue-split things like "150g" -> "150 g"
+      var norm = seg.replace(/(\d)\s*(kg|g|gram|grams|oz|ounce|ounces|lb|lbs|pound|pounds)\b/g, "$1 $2");
+      var tokens = norm.split(/\s+/).filter(Boolean);
+      var q = parseQuantity(tokens);
+      var food = matchFood(q.rest) || matchFood(seg);
+      if (!food) { unmatched.push(seg); return; }
+
+      var factor = q.weightGrams != null ? (q.weightGrams / food.g)
+                                         : (q.qty == null ? 1 : q.qty) * q.sizeMult;
+      if (!(factor > 0)) factor = 1;
+      total.cal += food.kcal * factor;
+      total.pro += food.pro * factor;
+      total.carb += food.carb * factor;
+      total.fat += food.fat * factor;
+
+      var label = food.a[0];
+      var amount = q.weightGrams != null ? Math.round(q.weightGrams) + "g"
+                 : (q.qty != null || q.sizeMult !== 1 ? round((q.qty == null ? 1 : q.qty) * q.sizeMult) + "×" : "1×");
+      matched.push(amount + " " + label);
+    });
+
+    return { total: total, matched: matched, unmatched: unmatched };
+  }
+
+  function runEstimate() {
+    var status = $("estStatus");
+    var desc = $("fName").value.trim();
+    if (!desc) {
+      status.className = "est-status warn";
+      status.textContent = "Type what you ate first — e.g. “2 eggs and 1 cup rice”.";
+      return false;
+    }
+    var r = estimate(desc);
+    if (!r.matched.length) {
+      status.className = "est-status warn";
+      status.textContent = "Couldn’t recognize that — try common foods, or enter values by hand.";
+      return false;
+    }
+    $("fCal").value  = Math.round(r.total.cal);
+    $("fPro").value  = round(r.total.pro);
+    $("fCarb").value = round(r.total.carb);
+    $("fFat").value  = round(r.total.fat);
+    status.className = "est-status ok";
+    var note = "≈ " + Math.round(r.total.cal) + " kcal · " + round(r.total.pro) + "g protein  (" + r.matched.join(", ") + ")";
+    if (r.unmatched.length) note += " — couldn’t read: " + r.unmatched.join(", ");
+    status.textContent = note + ". Adjust if needed.";
+    return true;
+  }
+
   // ---- actions ----
   function addEntry(e) {
     e.preventDefault();
+    // If calories weren't filled in, try to auto-estimate from the description.
+    if (!$("fCal").value) {
+      if (!runEstimate()) { $("fCal").focus(); return; }
+    }
     var entry = {
       id: uid(),
       name: $("fName").value.trim() || "Food",
@@ -329,6 +582,7 @@
     entries[selectedDate].push(entry);
     save();
     $("foodForm").reset();
+    var s = $("estStatus"); s.textContent = ""; s.className = "est-status";
     $("fName").focus();
     render();
   }
@@ -343,6 +597,10 @@
 
   // ---- events ----
   $("foodForm").addEventListener("submit", addEntry);
+  $("estimateBtn").addEventListener("click", runEstimate);
+  $("fName").addEventListener("input", function () {
+    var s = $("estStatus"); s.textContent = ""; s.className = "est-status";
+  });
   entriesEl.addEventListener("click", function (ev) {
     var btn = ev.target.closest(".del");
     if (btn) deleteEntry(btn.getAttribute("data-id"));
