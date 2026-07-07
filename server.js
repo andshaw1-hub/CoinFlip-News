@@ -1,4 +1,4 @@
-// server.js — Coin Flip main server
+// server.js — Food Tracker Pro main server
 require('dotenv').config();
 
 const express = require('express');
@@ -62,7 +62,7 @@ app.get('*', (req, res) => {
 app.listen(PORT, () => {
   console.log(`
 ╔════════════════════════════════════════╗
-║   COIN FLIP  —  Running on :${PORT}       ║
+║   FOOD TRACKER PRO — Running on :${PORT}  ║
 ╠════════════════════════════════════════╣
 ║  Local:  http://localhost:${PORT}          ║
 ╚════════════════════════════════════════╝

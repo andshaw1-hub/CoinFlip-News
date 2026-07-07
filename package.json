@@ -1,7 +1,7 @@
 {
-  "name": "coin-flip",
+  "name": "food-tracker-pro",
   "version": "1.0.0",
-  "description": "Coin Flip — NIL & Sports Betting Intelligence Platform",
+  "description": "Food Tracker Pro",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

@@ -25,7 +25,7 @@ router.post('/generate', requireAuth, checkGenerationLimit, async (req, res) => 
 
   const selectedTone = tones[tone] || tones.insider;
 
-  const systemPrompt = `You are the lead writer for "${pubName || 'Coin Flip'}" — a sharp, professional publication covering NIL money, sports betting, athlete finances, and college sports business. Your standard: The Athletic meets Front Office Sports. Writing style: ${selectedTone}.
+  const systemPrompt = `You are the lead writer for "${pubName || 'Food Tracker Pro'}" — a sharp, professional publication covering NIL money, sports betting, athlete finances, and college sports business. Your standard: The Athletic meets Front Office Sports. Writing style: ${selectedTone}.
 
 Audience: ${audience || 'college sports fans and bettors'}. Authority and precision. Strong positions backed by real data. Crisp, never juvenile.
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Coin Flip — NIL & Sports Betting Intelligence</title>
+<title>Food Tracker Pro</title>
 <meta name="description" content="Sharp editorial intelligence on NIL deals, sports betting, and college sports business. Researched live, published three times a week.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
@@ -281,7 +281,7 @@ body { background:var(--bg); font-family:var(--sans); color:var(--ink); overflow
         <svg viewBox="0 0 24 24"><text x="12" y="17" text-anchor="middle" font-family="Georgia,serif" font-size="14" font-style="italic">¢</text></svg>
       </div>
       <div>
-        <div class="brand-name">Coin <em>Flip</em></div>
+        <div class="brand-name">Food Tracker <em>Pro</em></div>
         <div class="brand-sub">NIL · Betting · Athlete Money</div>
       </div>
     </div>
@@ -410,7 +410,7 @@ body { background:var(--bg); font-family:var(--sans); color:var(--ink); overflow
       <div class="panel" style="border-radius:10px 10px 0 0">
         <div class="panel-hdr"><span class="panel-label">Story Setup</span><span class="panel-num">01</span></div>
         <div class="field"><label>Topic</label><input type="text" id="topic" value="NIL deals and sports betting college athletes 2026" placeholder="NIL, betting, athlete money..."/></div>
-        <div class="field"><label>Publication</label><input type="text" id="pubname" value="Coin Flip"/></div>
+        <div class="field"><label>Publication</label><input type="text" id="pubname" value="Food Tracker Pro"/></div>
       </div>
       <div class="panel">
         <div class="panel-hdr"><span class="panel-label">Editorial Voice</span><span class="panel-num">02</span></div>
@@ -907,7 +907,7 @@ async function generateStory() {
       audience: document.getElementById('audience').value,
       length:   document.getElementById('length').value,
       angle:    document.getElementById('angle').value.trim(),
-      pubName:  document.getElementById('pubname').value.trim() || 'Coin Flip',
+      pubName:  document.getElementById('pubname').value.trim() || 'Food Tracker Pro',
     });
 
     setStatus('Writing your story…', 'live');
@@ -941,7 +941,7 @@ function renderArticle(data) {
   document.getElementById('artKicker').textContent   = data.kicker   || 'ANALYSIS';
   document.getElementById('artHeadline').textContent = data.headline || '';
   document.getElementById('artDeck').textContent     = data.deck     || '';
-  document.getElementById('artPub').textContent      = document.getElementById('pubname').value || 'Coin Flip';
+  document.getElementById('artPub').textContent      = document.getElementById('pubname').value || 'Food Tracker Pro';
   document.getElementById('artDate').textContent     = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
   document.getElementById('artTone').textContent     = selTone.charAt(0).toUpperCase() + selTone.slice(1);
 

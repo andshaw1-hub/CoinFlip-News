@@ -1,126 +1,111 @@
-// routes/auth.js
-const express = require('express');
-const bcrypt  = require('bcryptjs');
-const { v4: uuidv4 } = require('uuid');
-const { q }   = require('../db');
+// db.js — SQLite database layer for Food Tracker Pro
+// Exposes a `q` object of prepared statements used across the app.
+const path     = require('path');
+const Database = require('better-sqlite3');
 
-const router = express.Router();
+const DB_PATH = process.env.DATABASE_PATH || path.join(__dirname, 'data.db');
 
-// ── REGISTER ──────────────────────────────────────────────
-router.post('/register', async (req, res) => {
-  try {
-    const { email, password } = req.body;
+const db = new Database(DB_PATH);
+db.pragma('journal_mode = WAL');
+db.pragma('foreign_keys = ON');
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required.' });
-    }
+// ── SCHEMA ────────────────────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS users (
+    id                     TEXT PRIMARY KEY,
+    email                  TEXT UNIQUE NOT NULL,
+    password_hash          TEXT NOT NULL,
+    tier                   TEXT NOT NULL DEFAULT 'free',
+    subscription_status    TEXT,
+    stripe_customer_id     TEXT,
+    stripe_subscription_id TEXT,
+    gen_count              INTEGER NOT NULL DEFAULT 0,
+    gen_reset_month        TEXT,
+    created_at             TEXT NOT NULL DEFAULT (datetime('now'))
+  );
 
-    if (password.length < 8) {
-      return res.status(400).json({ error: 'Password must be at least 8 characters.' });
-    }
+  CREATE TABLE IF NOT EXISTS stories (
+    id         TEXT PRIMARY KEY,
+    user_id    TEXT NOT NULL,
+    topic      TEXT,
+    tone       TEXT,
+    headline   TEXT,
+    payload    TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
 
-    const emailRx = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRx.test(email)) {
-      return res.status(400).json({ error: 'Please enter a valid email address.' });
-    }
+  CREATE INDEX IF NOT EXISTS idx_stories_user   ON stories(user_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_users_sub       ON users(stripe_subscription_id);
+`);
 
-    const existing = q.getUserByEmail.get(email.toLowerCase());
-    if (existing) {
-      return res.status(409).json({ error: 'An account with this email already exists.' });
-    }
+// Number of stories retained per user (older ones are pruned after each save).
+const STORY_RETENTION = 50;
 
-    const password_hash = await bcrypt.hash(password, 12);
-    const id = uuidv4();
-    const currentMonth = new Date().toISOString().slice(0, 7);
+// ── PREPARED STATEMENTS ───────────────────────────────────────────────
+const q = {
+  // Users
+  getUserById:  db.prepare(`SELECT * FROM users WHERE id = ?`),
+  getUserByEmail: db.prepare(`SELECT * FROM users WHERE email = ?`),
+  getUserBySubscriptionId: db.prepare(`SELECT * FROM users WHERE stripe_subscription_id = ?`),
 
-    q.createUser.run({
-      id,
-      email: email.toLowerCase(),
-      password_hash,
-      tier: 'free',
-      gen_reset_month: currentMonth
-    });
+  createUser: db.prepare(`
+    INSERT INTO users (id, email, password_hash, tier, gen_reset_month)
+    VALUES (@id, @email, @password_hash, @tier, @gen_reset_month)
+  `),
 
-    const user = q.getUserById.get(id);
-    req.session.userId = id;
+  resetGenCount: db.prepare(`
+    UPDATE users SET gen_count = 0, gen_reset_month = @month WHERE id = @id
+  `),
 
-    res.json({
-      user: safeUser(user),
-      message: 'Account created successfully.'
-    });
+  incrementGenCount: db.prepare(`
+    UPDATE users SET gen_count = gen_count + 1, gen_reset_month = @month WHERE id = @id
+  `),
 
-  } catch (err) {
-    console.error('Register error:', err);
-    res.status(500).json({ error: 'Registration failed. Please try again.' });
-  }
-});
+  updateTierPro: db.prepare(`
+    UPDATE users
+       SET tier = 'pro',
+           subscription_status = 'active',
+           stripe_customer_id = @stripe_customer_id,
+           stripe_subscription_id = @stripe_subscription_id
+     WHERE id = @id
+  `),
 
-// ── LOGIN ─────────────────────────────────────────────────
-router.post('/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
+  updateSubscriptionStatus: db.prepare(`
+    UPDATE users
+       SET subscription_status = @status,
+           tier = @tier
+     WHERE stripe_subscription_id = @stripe_subscription_id
+  `),
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required.' });
-    }
+  // Stories
+  saveStory: db.prepare(`
+    INSERT INTO stories (id, user_id, topic, tone, headline, payload)
+    VALUES (@id, @user_id, @topic, @tone, @headline, @payload)
+  `),
 
-    const user = q.getUserByEmail.get(email.toLowerCase());
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid email or password.' });
-    }
+  getStories: db.prepare(`
+    SELECT id, topic, tone, headline, created_at
+      FROM stories
+     WHERE user_id = ?
+     ORDER BY created_at DESC
+  `),
 
-    const valid = await bcrypt.compare(password, user.password_hash);
-    if (!valid) {
-      return res.status(401).json({ error: 'Invalid email or password.' });
-    }
+  getStory: db.prepare(`
+    SELECT * FROM stories WHERE id = ? AND user_id = ?
+  `),
 
-    req.session.userId = user.id;
+  // Keep only the most recent STORY_RETENTION stories for a user.
+  deleteOldStories: db.prepare(`
+    DELETE FROM stories
+     WHERE user_id = ?
+       AND id NOT IN (
+         SELECT id FROM stories
+          WHERE user_id = ?
+          ORDER BY created_at DESC
+          LIMIT ${STORY_RETENTION}
+       )
+  `),
+};
 
-    res.json({
-      user: safeUser(user),
-      message: 'Signed in successfully.'
-    });
-
-  } catch (err) {
-    console.error('Login error:', err);
-    res.status(500).json({ error: 'Login failed. Please try again.' });
-  }
-});
-
-// ── LOGOUT ────────────────────────────────────────────────
-router.post('/logout', (req, res) => {
-  req.session.destroy(err => {
-    if (err) return res.status(500).json({ error: 'Logout failed.' });
-    res.clearCookie('connect.sid');
-    res.json({ message: 'Signed out successfully.' });
-  });
-});
-
-// ── SESSION CHECK ─────────────────────────────────────────
-router.get('/me', (req, res) => {
-  if (!req.session.userId) {
-    return res.json({ user: null });
-  }
-  const user = q.getUserById.get(req.session.userId);
-  if (!user) {
-    req.session.destroy();
-    return res.json({ user: null });
-  }
-
-  // Check/reset monthly count
-  const currentMonth = new Date().toISOString().slice(0, 7);
-  if (user.gen_reset_month !== currentMonth) {
-    q.resetGenCount.run({ month: currentMonth, id: user.id });
-    user.gen_count = 0;
-  }
-
-  res.json({ user: safeUser(user) });
-});
-
-// Strip sensitive fields before sending to client
-function safeUser(user) {
-  const { password_hash, stripe_customer_id, ...safe } = user;
-  return safe;
-}
-
-module.exports = router;
+module.exports = { db, q };

@@ -1,4 +1,4 @@
-# Coin Flip — Setup Guide
+# Food Tracker Pro — Setup Guide
 
 ## Prerequisites
 - Node.js 18+ (`node -v`)
@@ -10,7 +10,7 @@
 ## 1. Install Dependencies
 
 ```bash
-cd coin-flip
+cd food-tracker-pro
 npm install
 ```
 
@@ -29,7 +29,7 @@ Edit `.env` with your real keys:
 2. Copy your **Publishable key** → `STRIPE_PUBLISHABLE_KEY`
 3. Copy your **Secret key** → `STRIPE_SECRET_KEY`
 4. Create a Product: Dashboard → Products → Add Product
-   - Name: "Coin Flip Pro"
+   - Name: "Food Tracker Pro"
    - Price: $9.00 / month / recurring / USD
    - Copy the **Price ID** → `STRIPE_PRICE_ID`
 
@@ -121,7 +121,7 @@ railway variables set $(cat .env | xargs)
 ## Architecture
 
 ```
-coin-flip/
+food-tracker-pro/
 ├── server.js          # Express server, routes
 ├── db.js              # SQLite database (better-sqlite3)
 ├── .env               # Your secrets (never commit this)
