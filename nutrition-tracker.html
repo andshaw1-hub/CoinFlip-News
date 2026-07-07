@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily Nutrition Tracker</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --panel-2: #273449;
+    --border: #334155;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --accent: #22c55e;
+    --accent-dim: #16a34a;
+    --danger: #ef4444;
+    --cal: #f59e0b;
+    --pro: #38bdf8;
+    --carb: #a78bfa;
+    --fat: #fb7185;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 24px 16px 64px; }
+  header { text-align: center; margin-bottom: 20px; }
+  header h1 { margin: 0; font-size: 1.6rem; }
+  header p { margin: 4px 0 0; color: var(--muted); font-size: 0.9rem; }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    margin-bottom: 18px;
+  }
+
+  .date-bar { display: flex; align-items: center; justify-content: center; gap: 10px; }
+  .date-bar button {
+    background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px;
+    width: 38px; height: 38px; font-size: 1.1rem; cursor: pointer;
+  }
+  .date-bar input[type=date] {
+    background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 10px; font-size: 0.95rem; color-scheme: dark;
+  }
+  .today-btn { font-size: 0.85rem !important; width: auto !important; padding: 0 12px; }
+
+  /* Summary */
+  .totals { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 4px; }
+  .stat {
+    background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 8px; text-align: center;
+  }
+  .stat .val { font-size: 1.35rem; font-weight: 700; }
+  .stat .lbl { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .stat.cal .val { color: var(--cal); }
+  .stat.pro .val { color: var(--pro); }
+  .stat.carb .val { color: var(--carb); }
+  .stat.fat .val { color: var(--fat); }
+
+  .goal-row { display: flex; align-items: center; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+  .goal-row label { color: var(--muted); font-size: 0.85rem; }
+  .goal-row input { width: 90px; }
+  .bar { height: 8px; background: var(--panel-2); border-radius: 6px; overflow: hidden; flex: 1; min-width: 120px; }
+  .bar > span { display: block; height: 100%; background: var(--accent); width: 0; transition: width .3s; }
+  .bar.over > span { background: var(--danger); }
+  .goal-text { font-size: 0.82rem; color: var(--muted); white-space: nowrap; }
+
+  /* Form */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .form-grid .full { grid-column: 1 / -1; }
+  label.field { display: block; font-size: 0.75rem; color: var(--muted); margin-bottom: 4px; }
+  input, select {
+    width: 100%; background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 9px 10px; font-size: 0.95rem;
+  }
+  input:focus, select:focus { outline: none; border-color: var(--accent); }
+  .btn-add {
+    margin-top: 12px; width: 100%; background: var(--accent); color: #05240f;
+    border: none; border-radius: 9px; padding: 12px; font-size: 1rem;
+    font-weight: 700; cursor: pointer;
+  }
+  .btn-add:hover { background: var(--accent-dim); }
+
+  /* Entries */
+  .meal-group { margin-bottom: 16px; }
+  .meal-group h3 {
+    margin: 0 0 8px; font-size: 0.8rem; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--muted);
+    display: flex; justify-content: space-between; align-items: baseline;
+  }
+  .meal-group h3 .mcals { color: var(--cal); font-weight: 700; }
+  .entry {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 12px; margin-bottom: 8px;
+  }
+  .entry .info { flex: 1; min-width: 0; }
+  .entry .name { font-weight: 600; }
+  .entry .macros { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+  .entry .kcal { font-weight: 700; color: var(--cal); white-space: nowrap; }
+  .entry .del {
+    background: transparent; border: none; color: var(--muted);
+    font-size: 1.2rem; cursor: pointer; padding: 2px 6px; line-height: 1;
+  }
+  .entry .del:hover { color: var(--danger); }
+  .empty { text-align: center; color: var(--muted); padding: 30px 0; }
+
+  .footer-note { text-align: center; color: var(--muted); font-size: 0.75rem; margin-top: 8px; }
+  @media (max-width: 480px) {
+    .totals { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🥗 Daily Nutrition Tracker</h1>
+    <p>Log what you eat and keep an eye on your daily totals.</p>
+  </header>
+
+  <!-- Date + summary -->
+  <div class="card">
+    <div class="date-bar">
+      <button id="prevDay" title="Previous day">‹</button>
+      <input type="date" id="datePicker">
+      <button id="nextDay" title="Next day">›</button>
+      <button id="todayBtn" class="today-btn">Today</button>
+    </div>
+
+    <div class="totals">
+      <div class="stat cal"><div class="val" id="tCal">0</div><div class="lbl">Calories</div></div>
+      <div class="stat pro"><div class="val" id="tPro">0g</div><div class="lbl">Protein</div></div>
+      <div class="stat carb"><div class="val" id="tCarb">0g</div><div class="lbl">Carbs</div></div>
+      <div class="stat fat"><div class="val" id="tFat">0g</div><div class="lbl">Fat</div></div>
+    </div>
+
+    <div class="goal-row">
+      <label for="goal">Daily goal</label>
+      <input type="number" id="goal" min="0" step="50" placeholder="e.g. 2000">
+      <div class="bar" id="goalBar"><span></span></div>
+      <div class="goal-text" id="goalText">Set a goal</div>
+    </div>
+  </div>
+
+  <!-- Add food -->
+  <div class="card">
+    <form id="foodForm">
+      <div class="form-grid">
+        <div class="full">
+          <label class="field" for="fName">Food</label>
+          <input type="text" id="fName" placeholder="e.g. Grilled chicken salad" required>
+        </div>
+        <div>
+          <label class="field" for="fMeal">Meal</label>
+          <select id="fMeal">
+            <option>Breakfast</option>
+            <option>Lunch</option>
+            <option>Dinner</option>
+            <option>Snack</option>
+          </select>
+        </div>
+        <div>
+          <label class="field" for="fCal">Calories</label>
+          <input type="number" id="fCal" min="0" step="1" placeholder="0" required>
+        </div>
+        <div>
+          <label class="field" for="fPro">Protein (g)</label>
+          <input type="number" id="fPro" min="0" step="0.1" placeholder="0">
+        </div>
+        <div>
+          <label class="field" for="fCarb">Carbs (g)</label>
+          <input type="number" id="fCarb" min="0" step="0.1" placeholder="0">
+        </div>
+        <div>
+          <label class="field" for="fFat">Fat (g)</label>
+          <input type="number" id="fFat" min="0" step="0.1" placeholder="0">
+        </div>
+      </div>
+      <button type="submit" class="btn-add">+ Add food</button>
+    </form>
+  </div>
+
+  <!-- Entries -->
+  <div class="card">
+    <div id="entries"></div>
+  </div>
+
+  <p class="footer-note">Your data is saved privately in this browser — nothing is uploaded.</p>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var STORE_KEY = "nutritionEntries.v1";
+  var GOAL_KEY  = "nutritionGoal.v1";
+  var MEALS = ["Breakfast", "Lunch", "Dinner", "Snack"];
+
+  // ---- state ----
+  var entries = load(STORE_KEY, {});   // { "YYYY-MM-DD": [ {id,name,meal,cal,pro,carb,fat} ] }
+  var selectedDate = todayStr();
+
+  // ---- element refs ----
+  var $ = function (id) { return document.getElementById(id); };
+  var datePicker = $("datePicker");
+  var entriesEl  = $("entries");
+  var goalInput  = $("goal");
+
+  // ---- helpers ----
+  function todayStr() {
+    var d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 10);
+  }
+  function load(key, fallback) {
+    try { var v = JSON.parse(localStorage.getItem(key)); return v == null ? fallback : v; }
+    catch (e) { return fallback; }
+  }
+  function save() { localStorage.setItem(STORE_KEY, JSON.stringify(entries)); }
+  function num(v) { var n = parseFloat(v); return isNaN(n) || n < 0 ? 0 : n; }
+  function round(n) { return Math.round(n * 10) / 10; }
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+  function shiftDate(days) {
+    var d = new Date(selectedDate + "T00:00:00");
+    d.setDate(d.getDate() + days);
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 10);
+  }
+
+  // ---- rendering ----
+  function render() {
+    datePicker.value = selectedDate;
+    var list = entries[selectedDate] || [];
+
+    var totals = { cal: 0, pro: 0, carb: 0, fat: 0 };
+    list.forEach(function (e) {
+      totals.cal += e.cal; totals.pro += e.pro; totals.carb += e.carb; totals.fat += e.fat;
+    });
+
+    $("tCal").textContent  = Math.round(totals.cal);
+    $("tPro").textContent  = round(totals.pro) + "g";
+    $("tCarb").textContent = round(totals.carb) + "g";
+    $("tFat").textContent  = round(totals.fat) + "g";
+
+    renderGoal(totals.cal);
+    renderEntries(list);
+  }
+
+  function renderGoal(calTotal) {
+    var goal = num(goalInput.value);
+    var bar = $("goalBar");
+    var span = bar.firstElementChild;
+    var text = $("goalText");
+    if (goal > 0) {
+      var pct = Math.min(100, (calTotal / goal) * 100);
+      span.style.width = pct + "%";
+      var remaining = Math.round(goal - calTotal);
+      if (remaining >= 0) {
+        bar.classList.remove("over");
+        text.textContent = remaining + " kcal left";
+      } else {
+        bar.classList.add("over");
+        text.textContent = Math.abs(remaining) + " kcal over";
+      }
+    } else {
+      span.style.width = "0";
+      bar.classList.remove("over");
+      text.textContent = "Set a goal";
+    }
+  }
+
+  function renderEntries(list) {
+    if (!list.length) {
+      entriesEl.innerHTML = '<div class="empty">No food logged for this day yet.<br>Add your first item above. 🍽️</div>';
+      return;
+    }
+    var html = "";
+    MEALS.forEach(function (meal) {
+      var items = list.filter(function (e) { return e.meal === meal; });
+      if (!items.length) return;
+      var mealCals = items.reduce(function (s, e) { return s + e.cal; }, 0);
+      html += '<div class="meal-group"><h3>' + meal +
+              ' <span class="mcals">' + Math.round(mealCals) + ' kcal</span></h3>';
+      items.forEach(function (e) {
+        html += '<div class="entry">' +
+          '<div class="info">' +
+            '<div class="name">' + esc(e.name) + '</div>' +
+            '<div class="macros">P ' + round(e.pro) + 'g · C ' + round(e.carb) + 'g · F ' + round(e.fat) + 'g</div>' +
+          '</div>' +
+          '<div class="kcal">' + Math.round(e.cal) + ' kcal</div>' +
+          '<button class="del" data-id="' + e.id + '" title="Delete">✕</button>' +
+        '</div>';
+      });
+      html += '</div>';
+    });
+    entriesEl.innerHTML = html;
+  }
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  // ---- actions ----
+  function addEntry(e) {
+    e.preventDefault();
+    var entry = {
+      id: uid(),
+      name: $("fName").value.trim() || "Food",
+      meal: $("fMeal").value,
+      cal: num($("fCal").value),
+      pro: num($("fPro").value),
+      carb: num($("fCarb").value),
+      fat: num($("fFat").value)
+    };
+    if (!entries[selectedDate]) entries[selectedDate] = [];
+    entries[selectedDate].push(entry);
+    save();
+    $("foodForm").reset();
+    $("fName").focus();
+    render();
+  }
+
+  function deleteEntry(id) {
+    var list = entries[selectedDate] || [];
+    entries[selectedDate] = list.filter(function (e) { return e.id !== id; });
+    if (!entries[selectedDate].length) delete entries[selectedDate];
+    save();
+    render();
+  }
+
+  // ---- events ----
+  $("foodForm").addEventListener("submit", addEntry);
+  entriesEl.addEventListener("click", function (ev) {
+    var btn = ev.target.closest(".del");
+    if (btn) deleteEntry(btn.getAttribute("data-id"));
+  });
+  $("prevDay").addEventListener("click", function () { selectedDate = shiftDate(-1); render(); });
+  $("nextDay").addEventListener("click", function () { selectedDate = shiftDate(1); render(); });
+  $("todayBtn").addEventListener("click", function () { selectedDate = todayStr(); render(); });
+  datePicker.addEventListener("change", function () {
+    if (datePicker.value) { selectedDate = datePicker.value; render(); }
+  });
+  goalInput.addEventListener("input", function () {
+    localStorage.setItem(GOAL_KEY, goalInput.value);
+    render();
+  });
+
+  // ---- init ----
+  goalInput.value = localStorage.getItem(GOAL_KEY) || "";
+  render();
+})();
+</script>
+</body>
+</html>
